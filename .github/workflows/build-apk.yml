@@ -28,7 +28,7 @@ jobs:
         run: ./gradlew assembleDebug --stacktrace
 
       - name: Rename APK for release
-        run: cp app/build/outputs/apk/debug/app-debug.apk solar-system-wallpaper-debug.apk
+        run: cp app/build/outputs/apk/debug/app-debug.apk 1996-PX8.apk
 
       - name: Publish debug build to release
         uses: softprops/action-gh-release@v2
@@ -36,8 +36,8 @@ jobs:
           tag_name: debug-build
           name: Debug build (latest)
           body: |
-            Auto-built debug APK from `${{ github.sha }}`. Download `solar-system-wallpaper-debug.apk`
+            Auto-built debug APK from `${{ github.sha }}`. Download `1996-PX8.apk`
             below and open it directly on your phone (Settings > allow install from this source if asked)
             — no need to unzip anything. Requires Android 8.0+.
           prerelease: true
-          files: solar-system-wallpaper-debug.apk
+          files: 1996-PX8.apk

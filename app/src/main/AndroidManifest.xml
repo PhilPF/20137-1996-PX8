@@ -41,6 +41,12 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.SolarSystemWallpaper.Settings" />
 
+        <activity
+            android:name=".CameraPreviewActivity"
+            android:exported="true"
+            android:label="@string/adjust_view_button"
+            android:theme="@style/Theme.SolarSystemWallpaper" />
+
     </application>
 
 </manifest>

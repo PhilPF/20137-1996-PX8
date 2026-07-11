@@ -16,6 +16,21 @@ class WallpaperPrefs(context: Context) {
     val azimuthDrift: Boolean get() = prefs.getBoolean(KEY_AZIMUTH_DRIFT, true)
     val parallax: Boolean get() = prefs.getBoolean(KEY_PARALLAX, true)
 
+    /** Base camera set via the in-app "Adjust view" screen; ambient drift/parallax are added on top of this. */
+    val cameraAzimuthDeg: Double get() = prefs.getFloat(KEY_CAMERA_AZIMUTH, 0f).toDouble()
+    val cameraTiltDeg: Double get() = prefs.getFloat(KEY_CAMERA_TILT, DEFAULT_TILT_DEG.toFloat()).toDouble()
+    val cameraZoom: Double get() = prefs.getFloat(KEY_CAMERA_ZOOM, 1f).toDouble()
+
+    fun setCamera(azimuthDeg: Double, tiltDeg: Double, zoom: Double) {
+        prefs.edit()
+            .putFloat(KEY_CAMERA_AZIMUTH, azimuthDeg.toFloat())
+            .putFloat(KEY_CAMERA_TILT, tiltDeg.toFloat())
+            .putFloat(KEY_CAMERA_ZOOM, zoom.toFloat())
+            .apply()
+    }
+
+    fun resetCamera() = setCamera(0.0, DEFAULT_TILT_DEG, 1.0)
+
     private val isRealTime: Boolean get() = prefs.getString(KEY_TIME_MODE, "real_time") == "real_time"
 
     private val speedDaysPerSec: Double
@@ -77,9 +92,15 @@ class WallpaperPrefs(context: Context) {
         const val KEY_ANCHOR_SIM_MILLIS = "pref_custom_anchor_sim_millis"
         const val KEY_AZIMUTH_DRIFT = "pref_azimuth_drift"
         const val KEY_PARALLAX = "pref_parallax"
+        const val KEY_CAMERA_AZIMUTH = "pref_camera_azimuth"
+        const val KEY_CAMERA_TILT = "pref_camera_tilt"
+        const val KEY_CAMERA_ZOOM = "pref_camera_zoom"
 
         /** Default custom-mode rate, matching the design handoff's recommended ambient speed. */
         const val DEFAULT_SPEED_DAYS_PER_SEC = 30.0
+
+        /** Default fixed camera tilt, per the design handoff's recommended default (22-23deg). */
+        const val DEFAULT_TILT_DEG = 22.0
 
         /** Full 360° ambient camera rotations take this long when azimuth drift is enabled. */
         const val AZIMUTH_DRIFT_DEG_PER_SEC = 360.0 / (2 * 60 * 60)

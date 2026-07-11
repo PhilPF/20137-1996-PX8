@@ -12,8 +12,9 @@
         android:layout_height="wrap_content"
         android:text="@string/app_name"
         android:textColor="@color/foreground"
-        android:textSize="22sp"
+        android:textSize="24sp"
         android:textStyle="bold"
+        android:letterSpacing="0.01"
         android:layout_marginBottom="12dp" />
 
     <TextView
@@ -21,22 +22,39 @@
         android:layout_height="wrap_content"
         android:text="@string/main_description"
         android:textColor="@color/foreground"
+        android:alpha="0.85"
         android:textSize="14sp"
         android:gravity="center"
-        android:layout_marginBottom="28dp" />
+        android:layout_marginBottom="32dp" />
 
     <Button
         android:id="@+id/setWallpaperButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/set_wallpaper_button" />
+        android:background="@drawable/pill_button_background_accent"
+        android:text="@string/set_wallpaper_button"
+        android:textColor="@color/background"
+        android:textStyle="bold"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/adjustViewButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/pill_button_background"
+        android:text="@string/adjust_view_button"
+        android:textColor="@color/foreground"
+        android:textAllCaps="false" />
 
     <Button
         android:id="@+id/openSettingsButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="14dp"
+        android:background="@drawable/pill_button_background"
         android:text="@string/open_settings_button"
-        style="?android:attr/buttonBarButtonStyle" />
+        android:textColor="@color/foreground"
+        android:textAllCaps="false" />
 
 </LinearLayout>

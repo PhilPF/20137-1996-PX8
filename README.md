@@ -15,25 +15,34 @@ orbital math and visual design were ported natively.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/OrbitalMechanics.kt` — planet
   elements table + Kepler solver + ecliptic projection, ported line-for-line from
   the reference `PLANETS` array and math functions.
+- `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemRenderer.kt` — the
+  Canvas2D-style drawing code (ported from the reference `draw()`), shared by the
+  live wallpaper and the in-app preview so both stay pixel-identical.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/MainActivity.kt` — launcher
-  screen with a "Set as Live Wallpaper" button (opens the system's live-wallpaper
+  screen with **Set as Live Wallpaper** (opens the system's live-wallpaper
   preview/set screen directly via `ACTION_CHANGE_LIVE_WALLPAPER`, bypassing OEM
-  wallpaper pickers that don't surface a live wallpapers category) and a
-  "Customize" button that opens `SettingsActivity` directly, so all options are
-  reachable from the app itself rather than only through the OS wallpaper
-  picker's settings gear icon.
+  wallpaper pickers that don't surface a live wallpapers category), **Adjust
+  View**, and **Customize**, so everything is reachable from the app itself
+  rather than only through OS wallpaper-picker UI.
+- `app/src/main/java/com/philpf/solarsystemwallpaper/CameraPreviewActivity.kt` +
+  `SolarSystemPreviewView.kt` — the in-app equivalent of the HTML reference's
+  drag-to-rotate/pinch-to-zoom camera controls (same sensitivity/clamping:
+  drag 0.35/0.25, tilt 0–85°, zoom 0.3–6×). Since live wallpapers can't reliably
+  receive touch themselves, positioning happens here instead and gets saved as
+  the wallpaper's fixed camera angle.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWallpaperService.kt`
   — the `WallpaperService.Engine` that owns the render loop (`SurfaceHolder` +
-  `Canvas`, ~30fps, paused when not visible).
+  `Canvas`, ~30fps, paused when not visible) and layers ambient azimuth drift /
+  swipe parallax on top of the saved camera.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SettingsActivity.kt` +
-  `WallpaperPrefs.kt` — the wallpaper picker's "Settings" screen (monochrome mode,
-  label toggles, asteroid accent color, ambient camera drift, swipe parallax) and
-  the time-drive controls: **Real-time** vs **Custom**, a date/time picker to set
-  where the simulation starts, and a speed selector (0.5–400 simulated days per
-  real second, matching the original prototype's speed presets). Custom mode is
-  anchored via a persisted (real-time, sim-time) pair in `WallpaperPrefs`, so the
-  extrapolated position survives the wallpaper engine being torn down and
-  recreated (screen off/on, etc.) without drifting or resetting.
+  `WallpaperPrefs.kt` — the "Settings" screen (monochrome mode, label toggles,
+  asteroid accent color, ambient camera drift, swipe parallax) and the time-drive
+  controls: **Real-time** vs **Custom**, a date/time picker to set where the
+  simulation starts, and a speed selector (0.5–400 simulated days per real
+  second, matching the original prototype's speed presets). Custom time mode and
+  the saved camera are both anchored via persisted values in `WallpaperPrefs`
+  rather than in-memory engine state, so they survive the wallpaper engine being
+  torn down and recreated (screen off/on, etc.) without drifting or resetting.
 
 ## Decisions made per the handoff's "developer to decide" list
 
@@ -42,9 +51,12 @@ orbital math and visual design were ported natively.
 - **No network/INTERNET permission**: the asteroid's orbital elements are baked
   in at build time (`AsteroidAngeljorba` in `OrbitalMechanics.kt`), using the
   same fallback catalog values as the reference file.
-- **Touch/drag camera and control bar dropped** — live wallpapers don't reliably
-  own touch. The camera is a fixed 22° tilt; azimuth optionally drifts slowly and
-  optionally responds to home-screen swipe offset (both toggleable in Settings).
+- **Touch/drag camera dropped from the wallpaper itself** — live wallpapers don't
+  reliably own touch — but not from the app: **Adjust View** reproduces the HTML
+  reference's drag/pinch camera controls in-app, and the resulting angle is saved
+  as the wallpaper's fixed camera (default 22° tilt if never adjusted). Azimuth
+  can additionally drift slowly and/or respond to home-screen swipe offset on top
+  of the saved angle (both toggleable in Settings).
 - **Time drive**: defaults to real wall-clock time, with a "Custom" mode in
   Settings that lets you pick a start date/time and a speed (0.5–400 simulated
   days/sec) for more visible ambient motion or jumping to an arbitrary date.

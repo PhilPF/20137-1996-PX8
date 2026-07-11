@@ -1,3 +1,8 @@
+import java.net.HttpURLConnection
+import java.net.URI
+import java.net.URLEncoder
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -7,7 +12,9 @@ plugins {
 // the design handoff's recommendation: fetch once at build time rather than at wallpaper
 // runtime (no INTERNET permission needed, no risk of a broken state if JPL is unreachable).
 // Falls back to the last-known catalog orbit (shape/tilt real, position-along-orbit a stand-in)
-// if the fetch fails for any reason — this must never break the build.
+// if every source fails — this must never break the build. This is a secondary/best-effort
+// layer; the app itself (AsteroidOrbitFetcher.kt) fetches and verifies this live on open too,
+// with the same source list, and that result takes priority at runtime — see WallpaperPrefs.
 val asteroidElementsOutputDir = layout.buildDirectory.dir("generated/asteroidElements/kotlin")
 
 val generateAsteroidElements by tasks.registering {
@@ -30,38 +37,61 @@ val generateAsteroidElements by tasks.registering {
             a = 2.2895838, e = 0.3045701, i = 5.86541, om = 150.65575, w = 0.0, ma = 0.0, epoch = 2461232.5,
         )
 
-        var result = fallback
-        var source = "fallback (baked-in catalog orbit; live JPL fetch unavailable at build time)"
+        val target = "https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=20137&full-prec=1"
+        val encodedTarget = URLEncoder.encode(target, "UTF-8")
+        // Same sources (and same order) as AsteroidOrbitFetcher.kt's runtime fetch — direct
+        // request first, then a few independent read-only CORS relays as fallbacks, since JPL's
+        // API can 403 unrecognized/automated clients even outside a browser's CORS policy.
+        val sources = listOf(
+            "direct" to target,
+            "allorigins relay" to "https://api.allorigins.win/raw?url=$encodedTarget",
+            "corsproxy relay" to "https://corsproxy.io/?url=$encodedTarget",
+            "codetabs relay" to "https://api.codetabs.com/v1/proxy?quest=$encodedTarget",
+            "thingproxy relay" to "https://thingproxy.freeboard.io/fetch/$target",
+        )
 
-        try {
-            val url = java.net.URI("https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=20137&full-prec=1").toURL()
-            val connection = url.openConnection() as java.net.HttpURLConnection
+        fun get(urlStr: String): String {
+            val connection = URI(urlStr).toURL().openConnection() as HttpURLConnection
             connection.connectTimeout = 8000
             connection.readTimeout = 8000
             connection.setRequestProperty("Accept", "application/json")
-            val json = connection.inputStream.bufferedReader().use { it.readText() }
-            connection.disconnect()
-
-            fun extractElement(name: String): Double? =
-                Regex("\"name\"\\s*:\\s*\"$name\"[^}]*?\"value\"\\s*:\\s*\"(-?[0-9.eE+-]+)\"")
-                    .find(json)?.groupValues?.get(1)?.toDoubleOrNull()
-
-            val a = extractElement("a")
-            val e = extractElement("e")
-            val i = extractElement("i")
-            val om = extractElement("om")
-            val w = extractElement("w")
-            val ma = extractElement("ma")
-            val epoch = Regex("\"epoch\"\\s*:\\s*\"(-?[0-9.eE+-]+)\"").find(json)?.groupValues?.get(1)?.toDoubleOrNull()
-
-            if (a != null && e != null && i != null && om != null && w != null && ma != null && epoch != null) {
-                result = Elements(a, e, i, om, w, ma, epoch)
-                source = "live JPL Small-Body Database fetch at build time (sstr=20137)"
-            } else {
-                logger.warn("generateAsteroidElements: incomplete JPL SBDB response, using fallback orbit")
+            return try {
+                val code = connection.responseCode
+                check(code in 200..299) { "HTTP $code" }
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                connection.disconnect()
             }
-        } catch (ex: Exception) {
-            logger.warn("generateAsteroidElements: JPL SBDB fetch failed (${ex.message}), using fallback orbit")
+        }
+
+        fun extractElement(json: String, name: String): Double? =
+            Regex("\"name\"\\s*:\\s*\"$name\"[^}]*?\"value\"\\s*:\\s*\"(-?[0-9.eE+-]+)\"")
+                .find(json)?.groupValues?.get(1)?.toDoubleOrNull()
+
+        var result = fallback
+        var source = "fallback (baked-in catalog orbit; every JPL SBDB source unavailable at build time)"
+
+        for ((label, url) in sources) {
+            try {
+                val json = get(url)
+                val a = extractElement(json, "a")
+                val e = extractElement(json, "e")
+                val i = extractElement(json, "i")
+                val om = extractElement(json, "om")
+                val w = extractElement(json, "w")
+                val ma = extractElement(json, "ma")
+                val epoch = Regex("\"epoch\"\\s*:\\s*\"(-?[0-9.eE+-]+)\"").find(json)?.groupValues?.get(1)?.toDoubleOrNull()
+
+                if (a != null && e != null && i != null && om != null && w != null && ma != null && epoch != null) {
+                    result = Elements(a, e, i, om, w, ma, epoch)
+                    source = "live JPL Small-Body Database fetch at build time ($label, sstr=20137)"
+                    break
+                } else {
+                    logger.warn("generateAsteroidElements: incomplete response from $label, trying next source")
+                }
+            } catch (ex: Exception) {
+                logger.warn("generateAsteroidElements: $label failed (${ex.message}), trying next source")
+            }
         }
 
         val packageDir = outputDirProvider.get().asFile.resolve("com/philpf/solarsystemwallpaper")
@@ -88,7 +118,7 @@ val generateAsteroidElements by tasks.registering {
     }
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+tasks.withType<KotlinCompile>().configureEach {
     dependsOn(generateAsteroidElements)
 }
 

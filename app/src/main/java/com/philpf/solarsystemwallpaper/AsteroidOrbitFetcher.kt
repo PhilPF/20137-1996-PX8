@@ -24,9 +24,10 @@ sealed class AsteroidFetchResult {
 /**
  * Fetches real osculating elements for (20137) 1996 PX8 Angeljorba from JPL's Small-Body
  * Database, same source and retry chain as the design handoff's reference `fetchAsteroid()`
- * (direct request, then two read-only CORS relays, matching JPL's own no-browser-embedding
+ * (direct request, then several read-only CORS relays, matching JPL's own no-browser-embedding
  * policy — relayed the same way here since Android's HttpURLConnection hits the same 403s
- * JPL returns to unrecognized clients). Must be called off the main thread.
+ * JPL returns to unrecognized clients). Must be called off the main thread. Same source list,
+ * in the same order, as the build-time fallback fetch in app/build.gradle.kts.
  */
 object AsteroidOrbitFetcher {
 
@@ -38,6 +39,8 @@ object AsteroidOrbitFetcher {
             "direct" to TARGET,
             "allorigins relay" to "https://api.allorigins.win/raw?url=$encoded",
             "corsproxy relay" to "https://corsproxy.io/?url=$encoded",
+            "codetabs relay" to "https://api.codetabs.com/v1/proxy?quest=$encoded",
+            "thingproxy relay" to "https://thingproxy.freeboard.io/fetch/$TARGET",
         )
     }
 

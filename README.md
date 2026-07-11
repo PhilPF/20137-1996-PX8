@@ -15,6 +15,10 @@ orbital math and visual design were ported natively.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/OrbitalMechanics.kt` — planet
   elements table + Kepler solver + ecliptic projection, ported line-for-line from
   the reference `PLANETS` array and math functions.
+- `app/src/main/java/com/philpf/solarsystemwallpaper/MainActivity.kt` — launcher
+  screen with a "Set as Live Wallpaper" button that opens the system's
+  live-wallpaper preview/set screen directly via `ACTION_CHANGE_LIVE_WALLPAPER`,
+  bypassing OEM wallpaper pickers that don't surface a live wallpapers category.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWallpaperService.kt`
   — the `WallpaperService.Engine` that owns the render loop (`SurfaceHolder` +
   `Canvas`, ~30fps, paused when not visible).
@@ -55,6 +59,9 @@ a build:
    `Build > Build Bundle(s) / APK(s) > Build APK(s)`, or from a terminal with the
    Android SDK installed: `./gradlew assembleDebug`.
 
-Install with `adb install app/build/outputs/apk/debug/app-debug.apk`, then set
-it as your wallpaper via **Settings > Wallpaper > Live wallpapers > Solar System
-Tracker**.
+Install with `adb install app/build/outputs/apk/debug/app-debug.apk`. Open the
+**Solar System Tracker** app from your app drawer and tap **Set as Live
+Wallpaper** — this jumps straight to the system's live-wallpaper preview/set
+screen, which works even on OEM launchers whose own wallpaper picker doesn't
+surface a "Live wallpapers" category. (The OS picker at **Settings > Wallpaper
+> Live wallpapers > Solar System Tracker** works too, where available.)

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Solar System Tracker</string>
+    <string name="wallpaper_description">Solar system + near-Earth asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
+    <string name="settings_title">Wallpaper Settings</string>
+
+    <string name="pref_category_appearance">Appearance</string>
+    <string name="pref_monochrome_title">Monochrome mode</string>
+    <string name="pref_monochrome_summary">Render everything in white/gray so it works over any home-screen icon color scheme</string>
+    <string name="pref_show_planet_labels_title">Show planet labels</string>
+    <string name="pref_show_asteroid_label_title">Show asteroid label</string>
+    <string name="pref_asteroid_color_title">Asteroid accent color</string>
+
+    <string name="pref_category_motion">Motion</string>
+    <string name="pref_time_mode_title">Time drive</string>
+    <string name="pref_time_mode_summary">Real-time follows the actual date/time; Accelerated advances 30 simulated days per second for visible ambient motion</string>
+    <string name="pref_azimuth_drift_title">Slow ambient camera drift</string>
+    <string name="pref_azimuth_drift_summary">Gently rotates the view over time</string>
+    <string name="pref_parallax_title">Home-screen swipe parallax</string>
+    <string name="pref_parallax_summary">Subtly shifts the camera angle as you swipe between home screens</string>
+
+    <string-array name="asteroid_color_entries">
+        <item>Amber</item>
+        <item>Coral</item>
+        <item>Sky blue</item>
+        <item>Pink</item>
+    </string-array>
+    <string-array name="asteroid_color_values">
+        <item>#ffd166</item>
+        <item>#ff6b4a</item>
+        <item>#5fd0ff</item>
+        <item>#ff5fa0</item>
+    </string-array>
+
+    <string-array name="time_mode_entries">
+        <item>Real-time</item>
+        <item>Accelerated (30 days/sec)</item>
+    </string-array>
+    <string-array name="time_mode_values">
+        <item>real_time</item>
+        <item>accelerated</item>
+    </string-array>
+</resources>

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory android:title="@string/pref_category_appearance">
+
+        <SwitchPreferenceCompat
+            android:key="pref_monochrome"
+            android:title="@string/pref_monochrome_title"
+            android:summary="@string/pref_monochrome_summary"
+            android:defaultValue="false" />
+
+        <ListPreference
+            android:key="pref_asteroid_color"
+            android:title="@string/pref_asteroid_color_title"
+            android:entries="@array/asteroid_color_entries"
+            android:entryValues="@array/asteroid_color_values"
+            android:defaultValue="#ffd166" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_show_planet_labels"
+            android:title="@string/pref_show_planet_labels_title"
+            android:defaultValue="false" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_show_asteroid_label"
+            android:title="@string/pref_show_asteroid_label_title"
+            android:defaultValue="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/pref_category_motion">
+
+        <ListPreference
+            android:key="pref_time_mode"
+            android:title="@string/pref_time_mode_title"
+            android:summary="@string/pref_time_mode_summary"
+            android:entries="@array/time_mode_entries"
+            android:entryValues="@array/time_mode_values"
+            android:defaultValue="real_time" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_azimuth_drift"
+            android:title="@string/pref_azimuth_drift_title"
+            android:summary="@string/pref_azimuth_drift_summary"
+            android:defaultValue="true" />
+
+        <SwitchPreferenceCompat
+            android:key="pref_parallax"
+            android:title="@string/pref_parallax_title"
+            android:summary="@string/pref_parallax_summary"
+            android:defaultValue="true" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>

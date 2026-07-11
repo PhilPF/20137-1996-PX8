@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#171A24</color>
+    <color name="foreground">#E8E9EE</color>
+    <color name="orbit_line">#5F6470</color>
+    <color name="sun_core">#FFE9A8</color>
+    <color name="sun_glow">#FFF3C4</color>
+    <color name="accent_default">#FFD166</color>
+</resources>

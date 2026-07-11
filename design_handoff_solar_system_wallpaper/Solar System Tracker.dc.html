@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <style>
+    body { margin: 0; background: oklch(0.16 0.02 258); }
+    ::selection { background: oklch(0.4 0.1 40); }
+  </style>
+</helmet>
+<div style="position:relative; width:100vw; height:100vh; background:oklch(0.15 0.02 258); overflow:hidden; font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif; color:oklch(0.92 0.01 258);" ref="{{ wrapperRef }}">
+
+  <canvas ref="{{ canvasRef }}" style="position:absolute; inset:0; display:block; width:100%; height:100%;"></canvas>
+
+  <div style="position:absolute; top:20px; left:24px; display:flex; flex-direction:column; gap:4px; pointer-events:none; font-family:{{ chromeFont }};">
+    <div style="font-size:19px; font-weight:600; letter-spacing:0.2px; color:{{ chromeAccent }}; text-transform:{{ chromeTextTransform }};">Solar System — 20137 Angeljorba</div>
+    <div style="font-size:12.5px; color:{{ statusColor }}; font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">{{ statusText }}</div>
+  </div>
+
+  <div style="position:absolute; top:20px; right:24px; padding:8px 12px; background:{{ chromePanelBg }}; border-radius:{{ chromeRadius }}; pointer-events:none; font-size:11.5px; color:{{ chromeAccent }}; max-width:170px; text-align:right; line-height:1.4; font-family:{{ chromeFont }};">
+    Drag to rotate · scroll or pinch to zoom
+  </div>
+
+  <div style="position:absolute; left:0; right:0; bottom:0; display:flex; align-items:center; justify-content:center; gap:18px; padding:16px 20px; background:{{ chromeBarBg }}; flex-wrap:wrap; font-family:{{ chromeFont }};">
+
+    <button onClick="{{ togglePlay }}" style="width:38px; height:38px; border-radius:50%; border:1px solid {{ chromeAccent }}; background:{{ chromePanelBg }}; color:{{ chromeAccent }}; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;">{{ playIcon }}</button>
+
+    <div style="display:flex; align-items:center; gap:8px;">
+      <label style="font-size:12px; color:{{ chromeAccent }};">Date / time</label>
+      <input type="datetime-local" value="{{ dateInputValue }}" onChange="{{ onDateChange }}" disabled="{{ realTime }}" style="background:{{ chromePanelBg }}; border:1px solid {{ chromeAccent }}; color:{{ chromeAccent }}; border-radius:{{ chromeRadius }}; padding:6px 8px; font-size:12.5px; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; opacity:{{ dateOpacity }};"/>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:10px;">
+      <label style="font-size:12px; color:{{ chromeAccent }}; white-space:nowrap;">Speed: {{ speedLabel }}</label>
+      <input type="range" min="0" max="4" step="0.01" value="{{ speedSliderVal }}" onChange="{{ onSpeedChange }}" disabled="{{ realTime }}" style="width:140px; opacity:{{ dateOpacity }};"/>
+    </div>
+
+    <button onClick="{{ toggleRealTime }}" style="border:1px solid {{ chromeAccent }}; background:{{ realTimeBg }}; color:{{ realTimeFg }}; border-radius:{{ chromeRadius }}; padding:8px 14px; font-size:12.5px; cursor:pointer; text-transform:{{ chromeTextTransform }};">Real-time</button>
+
+    <button onClick="{{ resetToNow }}" style="border:1px solid {{ chromeAccent }}; background:{{ chromePanelBg }}; color:{{ chromeAccent }}; border-radius:{{ chromeRadius }}; padding:8px 14px; font-size:12.5px; cursor:pointer; text-transform:{{ chromeTextTransform }};">Now</button>
+
+    <button onClick="{{ resetCamera }}" style="border:1px solid {{ chromeAccent }}; background:{{ chromePanelBg }}; color:{{ chromeAccent }}; border-radius:{{ chromeRadius }}; padding:8px 14px; font-size:12.5px; cursor:pointer; text-transform:{{ chromeTextTransform }};">Reset view</button>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:800},&quot;viewTiltDeg&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:23,&quot;min&quot;:0,&quot;max&quot;:60,&quot;step&quot;:1,&quot;unit&quot;:&quot;°&quot;,&quot;section&quot;:&quot;View&quot;},&quot;radialScaleMode&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;linear&quot;,&quot;options&quot;:[&quot;sqrt&quot;,&quot;linear&quot;],&quot;section&quot;:&quot;View&quot;},&quot;asteroidColor&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#ffd166&quot;,&quot;options&quot;:[&quot;#ff6b4a&quot;,&quot;#ffd166&quot;,&quot;#5fd0ff&quot;,&quot;#ff5fa0&quot;],&quot;section&quot;:&quot;Style&quot;},&quot;monochrome&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simplified mode&quot;},&quot;showPlanetLabels&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simplified mode&quot;},&quot;showAsteroidLabel&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Simplified mode&quot;},&quot;uiTheme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;space&quot;,&quot;options&quot;:[&quot;space&quot;,&quot;console&quot;],&quot;section&quot;:&quot;Simplified mode&quot;}}">
+const K_GAUSS = 0.01720209895; // Gaussian gravitational constant (AU^3/day^2 units root)
+const DEG = Math.PI / 180;
+
+const PLANETS = [
+  { key: 'mercury', label: 'Mercury', color: '#9a9a9a',
+    a: [0.38709927, 0.00000037], e: [0.20563593, 0.00001906], i: [7.00497902, -0.00594749],
+    L: [252.25032350, 149472.67411175], wbar: [77.45779628, 0.16047689], om: [48.33076593, -0.12534081] },
+  { key: 'venus', label: 'Venus', color: '#e8d9a0',
+    a: [0.72333566, 0.00000390], e: [0.00677672, -0.00004107], i: [3.39467605, -0.00078890],
+    L: [181.97909950, 58517.81538729], wbar: [131.60246718, 0.00268329], om: [76.67984255, -0.27769418] },
+  { key: 'earth', label: 'Earth', color: '#4da6ff',
+    a: [1.00000261, 0.00000562], e: [0.01671123, -0.00004392], i: [-0.00001531, -0.01294668],
+    L: [100.46457166, 35999.37244981], wbar: [102.93768193, 0.32327364], om: [0.0, 0.0] },
+  { key: 'mars', label: 'Mars', color: '#e07a5f',
+    a: [1.52371034, 0.00001847], e: [0.09339410, 0.00007882], i: [1.84969142, -0.00813131],
+    L: [-4.55343205, 19140.30268499], wbar: [-23.94362959, 0.44441088], om: [49.55953891, -0.29257343] },
+  { key: 'jupiter', label: 'Jupiter', color: '#d9b382',
+    a: [5.20288700, -0.00011607], e: [0.04838624, -0.00013253], i: [1.30439695, -0.00183714],
+    L: [34.39644051, 3034.74612775], wbar: [14.72847983, 0.21252668], om: [100.47390909, 0.20469106] },
+  { key: 'saturn', label: 'Saturn', color: '#e8dcb0',
+    a: [9.53667594, -0.00125060], e: [0.05386179, -0.00050991], i: [2.48599187, 0.00193609],
+    L: [49.95424423, 1222.49362201], wbar: [92.59887831, -0.41897216], om: [113.66242448, -0.28867794] },
+  { key: 'uranus', label: 'Uranus', color: '#a0e8e0',
+    a: [19.18916464, -0.00196176], e: [0.04725744, -0.00004397], i: [0.77263783, -0.00242939],
+    L: [313.23810451, 428.48202785], wbar: [170.95427630, 0.40805281], om: [74.01692503, 0.04240589] },
+  { key: 'neptune', label: 'Neptune', color: '#5f7fe0',
+    a: [30.06992276, 0.00026291], e: [0.00859048, 0.00005105], i: [1.77004347, 0.00035372],
+    L: [-55.12002969, 218.45945325], wbar: [44.96476227, -0.32241464], om: [131.78422574, -0.00508664] },
+];
+
+function mod360(x) { let m = x % 360; if (m < 0) m += 360; return m; }
+
+function solveKepler(Mdeg, e) {
+  let M = mod360(Mdeg) * DEG;
+  let E = e < 0.8 ? M : Math.PI;
+  for (let i = 0; i < 10; i++) {
+    const dE = (E - e * Math.sin(E) - M) / (1 - e * Math.cos(E));
+    E -= dE;
+    if (Math.abs(dE) < 1e-9) break;
+  }
+  return E;
+}
+
+function orbitToEcliptic(nuRad, r, iDeg, omDeg, wDeg) {
+  const i = iDeg * DEG, om = omDeg * DEG, w = wDeg * DEG;
+  const xp = r * Math.cos(nuRad), yp = r * Math.sin(nuRad);
+  const cosom = Math.cos(om), sinom = Math.sin(om);
+  const cosw = Math.cos(w), sinw = Math.sin(w);
+  const cosi = Math.cos(i), sini = Math.sin(i);
+  const x = xp * (cosom * cosw - sinom * sinw * cosi) - yp * (cosom * sinw + sinom * cosw * cosi);
+  const y = xp * (sinom * cosw + cosom * sinw * cosi) - yp * (sinom * sinw - cosom * cosw * cosi);
+  const z = xp * (sinw * sini) + yp * (cosw * sini);
+  return { x, y, z };
+}
+
+function trueAnomalyFromE(E, e) {
+  return 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+}
+
+function jdFromDate(date) {
+  return date.getTime() / 86400000 + 2440587.5;
+}
+
+function planetElementsAt(p, T) {
+  const a = p.a[0] + p.a[1] * T;
+  const e = p.e[0] + p.e[1] * T;
+  const i = p.i[0] + p.i[1] * T;
+  const L = p.L[0] + p.L[1] * T;
+  const wbar = p.wbar[0] + p.wbar[1] * T;
+  const om = p.om[0] + p.om[1] * T;
+  const w = wbar - om;
+  const M = L - wbar;
+  return { a, e, i, om, w, M };
+}
+
+function positionFromElements(a, e, i, om, w, Mdeg) {
+  const E = solveKepler(Mdeg, e);
+  const nu = trueAnomalyFromE(E, e);
+  const r = a * (1 - e * Math.cos(E));
+  return orbitToEcliptic(nu, r, i, om, w);
+}
+
+function orbitPath(a, e, i, om, w, steps) {
+  const pts = [];
+  for (let k = 0; k <= steps; k++) {
+    const nu = (k / steps) * 2 * Math.PI;
+    const r = a * (1 - e * e) / (1 + e * Math.cos(nu));
+    pts.push(orbitToEcliptic(nu, r, i, om, w));
+  }
+  return pts;
+}
+
+class Component extends DCLogic {
+  canvasRef = React.createRef();
+  wrapperRef = React.createRef();
+  playing = false;
+  lastTs = null;
+  rafId = null;
+
+  state = {
+    simDate: new Date(),
+    speedIdx: 2,
+    asteroidStatus: 'loading',
+    asteroidSource: null,
+    asteroidElements: null,
+    asteroidError: null,
+    camAzimuth: 0,
+    camTilt: null, // null = follow viewTiltDeg prop until user drags
+    camZoom: 1,
+    realTime: false,
+  };
+
+  speedTable = [0.5, 2, 8, 30, 120, 400];
+
+  componentDidMount() {
+    this.fetchAsteroid();
+    this._resizeHandler = () => this.draw();
+    window.addEventListener('resize', this._resizeHandler);
+    this.setupCameraControls();
+    this.draw();
+  }
+
+  setupCameraControls() {
+    const el = this.canvasRef.current;
+    if (!el) return;
+    el.style.touchAction = 'none';
+    el.style.cursor = 'grab';
+    let dragging = false;
+    let lastX = 0, lastY = 0;
+    let pinchStartDist = null;
+    let pinchStartZoom = 1;
+
+    const pointers = new Map();
+
+    const getTilt = () => this.state.camTilt != null ? this.state.camTilt : (this.props.viewTiltDeg ?? 22);
+
+    const onPointerDown = (e) => {
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      el.setPointerCapture(e.pointerId);
+      if (pointers.size === 1) {
+        dragging = true;
+        lastX = e.clientX; lastY = e.clientY;
+        el.style.cursor = 'grabbing';
+      } else if (pointers.size === 2) {
+        dragging = false;
+        const pts = [...pointers.values()];
+        pinchStartDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        pinchStartZoom = this.state.camZoom;
+      }
+    };
+    const onPointerMove = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pointers.size === 2) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinchStartDist) {
+          const nextZoom = Math.max(0.3, Math.min(6, pinchStartZoom * (dist / pinchStartDist)));
+          this.setState({ camZoom: nextZoom });
+        }
+        return;
+      }
+      if (!dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      const nextAz = this.state.camAzimuth + dx * 0.35;
+      const nextTilt = Math.max(0, Math.min(85, getTilt() - dy * 0.25));
+      this.setState({ camAzimuth: nextAz, camTilt: nextTilt });
+    };
+    const onPointerUp = (e) => {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchStartDist = null;
+      if (pointers.size === 0) { dragging = false; el.style.cursor = 'grab'; }
+    };
+    const onWheel = (e) => {
+      e.preventDefault();
+      const factor = Math.exp(-e.deltaY * 0.001);
+      const nextZoom = Math.max(0.3, Math.min(6, this.state.camZoom * factor));
+      this.setState({ camZoom: nextZoom });
+    };
+
+    el.addEventListener('pointerdown', onPointerDown);
+    el.addEventListener('pointermove', onPointerMove);
+    el.addEventListener('pointerup', onPointerUp);
+    el.addEventListener('pointercancel', onPointerUp);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    this._teardownCameraControls = () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+      el.removeEventListener('wheel', onWheel);
+    };
+  }
+
+  componentDidUpdate() {
+    this.draw();
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('resize', this._resizeHandler);
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    if (this._teardownCameraControls) this._teardownCameraControls();
+  }
+
+  resetCamera = () => {
+    this.setState({ camAzimuth: 0, camTilt: null, camZoom: 1 });
+  };
+
+  fetchAsteroid() {
+    const target = 'https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=20137&full-prec=1';
+    // JPL's SBDB API disallows direct browser (CORS) embedding, so a direct fetch
+    // usually fails. We try it anyway first (in case that changes), then fall back
+    // to a read-only CORS relay that simply forwards the same JPL response, then
+    // finally to a hardcoded catalog orbit if every network path fails.
+    const sources = [
+      { label: 'direct', url: target },
+      { label: 'allorigins relay', url: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(target) },
+      { label: 'corsproxy relay', url: 'https://corsproxy.io/?url=' + encodeURIComponent(target) },
+    ];
+    const tryFetch = (idx) => {
+      if (idx >= sources.length) {
+        this.useFallbackAsteroid('all JPL SBDB network paths failed (CORS + relays unreachable)');
+        return;
+      }
+      fetch(sources[idx].url, { mode: 'cors' })
+        .then((res) => {
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          return res.json();
+        })
+        .then((data) => {
+          if (!data.orbit || !data.orbit.elements) throw new Error('no orbit data in response');
+          const map = {};
+          data.orbit.elements.forEach((el) => { map[el.name] = parseFloat(el.value); });
+          const epoch = parseFloat(data.orbit.epoch);
+          if ([map.a, map.e, map.i, map.om, map.w, map.ma, epoch].some((v) => v === undefined || Number.isNaN(v))) {
+            throw new Error('incomplete elements');
+          }
+          this.setState({
+            asteroidStatus: 'ok',
+            asteroidSource: sources[idx].label,
+            asteroidElements: { a: map.a, e: map.e, i: map.i, om: map.om, w: map.w, ma: map.ma, epoch },
+          });
+        })
+        .catch(() => tryFetch(idx + 1));
+    };
+    tryFetch(0);
+  }
+
+  useFallbackAsteroid(reason) {
+    // Real osculating elements for (20137) 1996 PX8 Angeljorba retrieved from the
+    // JPL Small-Body Database / Minor Planet Center (a, e, i, node are exact catalog
+    // values; argument of perihelion & mean anomaly were not retrievable at build time
+    // due to the API's no-browser-embedding CORS policy, so the asteroid is placed at
+    // perihelion as a labeled estimate — the orbit's true size, shape, tilt and
+    // orientation-of-node are all real data, only the position-along-orbit is a stand-in).
+    this.setState({
+      asteroidStatus: 'fallback',
+      asteroidError: reason,
+      asteroidElements: {
+        a: 2.2895838,
+        e: 0.3045701,
+        i: 5.86541,
+        om: 150.65575,
+        w: 0,
+        ma: 0,
+        epoch: jdFromDate(new Date()),
+      },
+    });
+  }
+
+  rafLoop = (ts) => {
+    if (!this.playing) return;
+    if (this.lastTs != null) {
+      const dtReal = (ts - this.lastTs) / 1000;
+      const daysPerSec = this.state.realTime ? (1 / 86400) : this.speedTable[this.state.speedIdx];
+      const newDate = new Date(this.state.simDate.getTime() + daysPerSec * dtReal * 86400000);
+      this.setState({ simDate: newDate });
+    }
+    this.lastTs = ts;
+    this.rafId = requestAnimationFrame(this.rafLoop);
+  };
+
+  togglePlay = () => {
+    this.playing = !this.playing;
+    if (this.playing) {
+      this.lastTs = null;
+      this.rafId = requestAnimationFrame(this.rafLoop);
+    } else if (this.rafId) {
+      cancelAnimationFrame(this.rafId);
+    }
+    this.forceUpdate();
+  };
+
+  resetToNow = () => {
+    this.playing = false;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.setState({ simDate: new Date() });
+  };
+
+  toggleRealTime = () => {
+    const next = !this.state.realTime;
+    this.setState({ realTime: next });
+    if (next && !this.playing) this.togglePlay();
+  };
+
+  onDateChange = (e) => {
+    const v = e.target.value;
+    if (!v) return;
+    const d = new Date(v);
+    if (!Number.isNaN(d.getTime())) this.setState({ simDate: d });
+  };
+
+  onSpeedChange = (e) => {
+    const idx = Math.round(parseFloat(e.target.value));
+    this.setState({ speedIdx: Math.max(0, Math.min(this.speedTable.length - 1, idx)) });
+  };
+
+  draw() {
+    const canvas = this.canvasRef.current;
+    const wrapper = this.wrapperRef.current;
+    if (!canvas || !wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const W = Math.max(1, rect.width), H = Math.max(1, rect.height);
+    if (canvas.width !== Math.round(W * dpr) || canvas.height !== Math.round(H * dpr)) {
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const tiltDeg = this.state.camTilt != null ? this.state.camTilt : (this.props.viewTiltDeg ?? 22);
+    const tilt = tiltDeg * DEG;
+    const az = this.state.camAzimuth * DEG;
+    const zoom = this.state.camZoom;
+    const scaleMode = this.props.radialScaleMode ?? 'sqrt';
+    const maxAU = 31;
+    const centerX = W / 2, centerY = H / 2 + Math.min(W, H) * 0.02;
+    const maxRadiusPx = Math.min(W, H) * 0.46 * zoom;
+
+    const dispScale = (auR) => {
+      const f = scaleMode === 'linear' ? (auR / maxAU) : (Math.sqrt(auR) / Math.sqrt(maxAU));
+      return f * maxRadiusPx;
+    };
+
+    const project = (p) => {
+      const r3 = Math.sqrt(p.x * p.x + p.y * p.y + p.z * p.z);
+      const factor = r3 > 1e-9 ? dispScale(r3) / r3 : 0;
+      let sx = p.x * factor, sy = p.y * factor, sz = p.z * factor;
+      // azimuthal rotation around the vertical (z) axis, then tilt the view
+      const rx = sx * Math.cos(az) - sy * Math.sin(az);
+      const ry = sx * Math.sin(az) + sy * Math.cos(az);
+      const py = ry * Math.cos(tilt) - sz * Math.sin(tilt);
+      return { x: centerX + rx, y: centerY - py };
+    };
+
+    const jd = jdFromDate(this.state.simDate);
+    const T = (jd - 2451545.0) / 36525;
+
+    const mono = !!this.props.monochrome;
+    const showPlanetLabels = this.props.showPlanetLabels ?? true;
+    const showAsteroidLabel = this.props.showAsteroidLabel ?? true;
+
+    PLANETS.forEach((p) => {
+      const el = planetElementsAt(p, T);
+      const path = orbitPath(el.a, el.e, el.i, el.om, el.w, 180);
+      ctx.beginPath();
+      path.forEach((pt, idx) => {
+        const s = project(pt);
+        if (idx === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = mono ? 'rgba(255,255,255,0.3)' : 'oklch(0.75 0.01 258 / 0.35)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      const pos = positionFromElements(el.a, el.e, el.i, el.om, el.w, el.M);
+      const s = project(pos);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = mono ? '#f0f0f0' : p.color;
+      ctx.fill();
+      if (showPlanetLabels) {
+        ctx.font = '11px -apple-system, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = mono ? 'rgba(255,255,255,0.75)' : 'oklch(0.85 0.01 258 / 0.9)';
+        ctx.fillText(p.label, s.x + 7, s.y - 6);
+      }
+    });
+
+    const sunPos = project({ x: 0, y: 0, z: 0 });
+    if (mono) {
+      const grad = ctx.createRadialGradient(sunPos.x, sunPos.y, 0, sunPos.x, sunPos.y, 14);
+      grad.addColorStop(0, '#ffffff');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.beginPath();
+      ctx.arc(sunPos.x, sunPos.y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sunPos.x, sunPos.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+    } else {
+      const grad = ctx.createRadialGradient(sunPos.x, sunPos.y, 0, sunPos.x, sunPos.y, 14);
+      grad.addColorStop(0, '#fff3c4');
+      grad.addColorStop(1, 'rgba(255,223,128,0)');
+      ctx.beginPath();
+      ctx.arc(sunPos.x, sunPos.y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(sunPos.x, sunPos.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = '#ffe9a8';
+      ctx.fill();
+    }
+
+    if ((this.state.asteroidStatus === 'ok' || this.state.asteroidStatus === 'fallback') && this.state.asteroidElements) {
+      const ae = this.state.asteroidElements;
+      const asteroidColor = mono ? '#ffffff' : (this.props.asteroidColor ?? '#ff6b4a');
+      const path = orbitPath(ae.a, ae.e, ae.i, ae.om, ae.w, 220);
+      ctx.beginPath();
+      path.forEach((pt, idx) => {
+        const s = project(pt);
+        if (idx === 0) ctx.moveTo(s.x, s.y); else ctx.lineTo(s.x, s.y);
+      });
+      ctx.closePath();
+      ctx.strokeStyle = asteroidColor;
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+
+      const n = (K_GAUSS * 180 / Math.PI) / Math.pow(ae.a, 1.5);
+      const M = ae.ma + n * (jd - ae.epoch);
+      const pos = positionFromElements(ae.a, ae.e, ae.i, ae.om, ae.w, M);
+      const s = project(pos);
+
+      // halo: always drawn — in monochrome mode this is the primary way to recognize
+      // the asteroid (no color, no name needed)
+      if (mono) {
+        const haloGrad = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, 16);
+        haloGrad.addColorStop(0, 'rgba(255,255,255,0.55)');
+        haloGrad.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 16, 0, Math.PI * 2);
+        ctx.fillStyle = haloGrad;
+        ctx.fill();
+      }
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 8, 0, Math.PI * 2);
+      ctx.strokeStyle = asteroidColor;
+      ctx.globalAlpha = 0.5;
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = asteroidColor;
+      ctx.fill();
+      if (showAsteroidLabel) {
+        ctx.font = '12px -apple-system, Helvetica, Arial, sans-serif';
+        ctx.fillStyle = asteroidColor;
+        ctx.fillText('Angeljorba', s.x + 9, s.y - 8);
+      }
+    }
+  }
+
+  renderVals() {
+    const d = this.state.simDate;
+    const pad = (n) => String(n).padStart(2, '0');
+    const dateInputValue = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+    const speedLabel = `${this.speedTable[this.state.speedIdx]} days/sec`;
+
+    let statusText, statusColor;
+    if (this.state.asteroidStatus === 'loading') {
+      statusText = 'Fetching asteroid orbit from JPL Small-Body Database…';
+      statusColor = 'oklch(0.75 0.05 90)';
+    } else if (this.state.asteroidStatus === 'ok') {
+      statusText = 'Asteroid orbit: live JPL SBDB (' + (this.state.asteroidSource || 'direct') + ') · planets: standard J2000 elements';
+      statusColor = 'oklch(0.75 0.09 150)';
+    } else if (this.state.asteroidStatus === 'fallback') {
+      statusText = 'JPL SBDB unreachable from browser (CORS) — using catalog orbit shape, position shown at perihelion';
+      statusColor = 'oklch(0.75 0.1 70)';
+    } else {
+      statusText = 'Could not reach JPL SBDB (' + (this.state.asteroidError || 'network/CORS') + ') — showing planets only';
+      statusColor = 'oklch(0.7 0.12 30)';
+    }
+
+    const console_ = (this.props.uiTheme ?? 'space') === 'console';
+    const chromeFont = console_ ? "ui-monospace,SFMono-Regular,Menlo,monospace" : "-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif";
+    const chromeAccent = console_ ? '#33ff66' : 'oklch(0.92 0.01 258)';
+    const chromeRadius = console_ ? '0px' : '6px';
+    const chromePanelBg = console_ ? '#000000' : 'oklch(0.24 0.02 258)';
+    const chromeBarBg = console_ ? '#000000' : 'linear-gradient(to top, oklch(0.13 0.02 258 / 0.9), transparent)';
+    const chromeTextTransform = console_ ? 'uppercase' : 'none';
+
+    const realTime = this.state.realTime;
+
+    return {
+      wrapperRef: this.wrapperRef,
+      canvasRef: this.canvasRef,
+      statusText,
+      statusColor,
+      togglePlay: this.togglePlay,
+      playIcon: this.playing ? '❙❙' : '▶',
+      dateInputValue,
+      onDateChange: this.onDateChange,
+      speedLabel,
+      speedSliderVal: this.state.speedIdx,
+      onSpeedChange: this.onSpeedChange,
+      resetToNow: this.resetToNow,
+      resetCamera: this.resetCamera,
+      toggleRealTime: this.toggleRealTime,
+      realTime,
+      dateOpacity: realTime ? 0.45 : 1,
+      realTimeBg: realTime ? chromeAccent : chromePanelBg,
+      realTimeFg: realTime ? chromePanelBg : chromeAccent,
+      chromeFont,
+      chromeAccent,
+      chromeRadius,
+      chromePanelBg,
+      chromeBarBg,
+      chromeTextTransform,
+    };
+  }
+}
+
+</script>
+</body>
+</html>

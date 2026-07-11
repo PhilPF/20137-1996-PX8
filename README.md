@@ -16,9 +16,12 @@ orbital math and visual design were ported natively.
   elements table + Kepler solver + ecliptic projection, ported line-for-line from
   the reference `PLANETS` array and math functions.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/MainActivity.kt` — launcher
-  screen with a "Set as Live Wallpaper" button that opens the system's
-  live-wallpaper preview/set screen directly via `ACTION_CHANGE_LIVE_WALLPAPER`,
-  bypassing OEM wallpaper pickers that don't surface a live wallpapers category.
+  screen with a "Set as Live Wallpaper" button (opens the system's live-wallpaper
+  preview/set screen directly via `ACTION_CHANGE_LIVE_WALLPAPER`, bypassing OEM
+  wallpaper pickers that don't surface a live wallpapers category) and a
+  "Customize" button that opens `SettingsActivity` directly, so all options are
+  reachable from the app itself rather than only through the OS wallpaper
+  picker's settings gear icon.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWallpaperService.kt`
   — the `WallpaperService.Engine` that owns the render loop (`SurfaceHolder` +
   `Canvas`, ~30fps, paused when not visible).

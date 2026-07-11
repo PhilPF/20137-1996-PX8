@@ -5,6 +5,7 @@
     <string name="settings_title">Wallpaper Settings</string>
     <string name="main_description">Sun, all 8 planets, and near-Earth asteroid (20137) Angeljorba, animated live on your home screen using real orbital mechanics.</string>
     <string name="set_wallpaper_button">Set as Live Wallpaper</string>
+    <string name="open_settings_button">Customize</string>
     <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose Solar System Tracker.</string>
 
     <string name="pref_category_appearance">Appearance</string>

@@ -44,10 +44,13 @@ This sandbox environment has no Android SDK and its network policy blocks
 `dl.google.com`, so the APK can't be compiled here. Two ways to actually get
 a build:
 
-1. **GitHub Actions (already set up)** — `.github/workflows/build-apk.yml` builds
-   a debug APK on every push and uploads it as a workflow artifact
-   (`solar-system-wallpaper-debug-apk`). Push this branch, open the Actions run,
-   and download the artifact.
+1. **GitHub Actions (already set up)** — `.github/workflows/build-apk.yml` is a
+   manual-only workflow (`workflow_dispatch`, no auto-trigger on push, to avoid
+   burning CI minutes on every commit). Run it from the repo's **Actions** tab
+   ("Build APK" > "Run workflow"). It builds a debug APK and publishes it
+   directly to the **`debug-build`** release (not a zipped Actions artifact —
+   public releases don't require a GitHub login and the `.apk` downloads
+   straight from a phone browser, ready to tap-install).
 2. **Locally with Android Studio** — open the project root, let it sync, then
    `Build > Build Bundle(s) / APK(s) > Build APK(s)`, or from a terminal with the
    Android SDK installed: `./gradlew assembleDebug`.

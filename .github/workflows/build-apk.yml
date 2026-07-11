@@ -1,10 +1,10 @@
 name: Build APK
 
 on:
-  push:
-    branches: ["**"]
-  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -27,8 +27,17 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Rename APK for release
+        run: cp app/build/outputs/apk/debug/app-debug.apk solar-system-wallpaper-debug.apk
+
+      - name: Publish debug build to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: solar-system-wallpaper-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          tag_name: debug-build
+          name: Debug build (latest)
+          body: |
+            Auto-built debug APK from `${{ github.sha }}`. Download `solar-system-wallpaper-debug.apk`
+            below and open it directly on your phone (Settings > allow install from this source if asked)
+            — no need to unzip anything. Requires Android 8.0+.
+          prerelease: true
+          files: solar-system-wallpaper-debug.apk

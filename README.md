@@ -20,17 +20,20 @@ bar, adapted into stacked rows since a phone doesn't have the desktop width for
 one long row of controls.
 
 - **Title** is the app name, shown top-left over the canvas.
-- **Toggle chips**: monochrome mode, planet labels, asteroid label, ambient
-  camera drift, home-screen swipe parallax.
+- **Always visible**: accent color swatches and the two primary actions,
+  **Options** and **Set as Live Wallpaper** — kept deliberately minimal so the
+  live preview isn't crowded on open.
+- **Options** (collapsed by default; tap to expand): toggle chips (monochrome
+  mode, planet labels, asteroid label, ambient camera drift, home-screen swipe
+  parallax), time drive (Real-time / Custom, with a start date/time picker and
+  a speed selector — 0.5–400 simulated days/sec, the original prototype's speed
+  presets — once Custom is selected), and Reset View.
 - **Accent color swatches**: picks the asteroid's color *and* the app's own UI
   accent (buttons, title, active-state highlights) at once, so they always
   match — six options (amber, coral, sky blue, pink, mint, violet).
-- **Time drive**: Real-time / Custom toggle; Custom reveals a start date/time
-  picker and a speed selector (0.5–400 simulated days/sec, the original
-  prototype's speed presets).
-- **Reset View** / **Set as Live Wallpaper** — the latter jumps straight to the
-  system's live-wallpaper preview/set screen via `ACTION_CHANGE_LIVE_WALLPAPER`,
-  bypassing OEM wallpaper pickers that don't surface a live wallpapers category.
+- **Set as Live Wallpaper** jumps straight to the system's live-wallpaper
+  preview/set screen via `ACTION_CHANGE_LIVE_WALLPAPER`, bypassing OEM
+  wallpaper pickers that don't surface a live wallpapers category.
 
 Dragging/pinching the preview auto-saves the camera angle as soon as the
 gesture ends — there's no separate "save" step, since positioning happens on
@@ -68,9 +71,13 @@ the same screen used to set the wallpaper.
 
 - **Renderer**: Canvas2D-style `SurfaceHolder`/`Canvas` (not OpenGL) — the
   recommended default.
-- **No network/INTERNET permission**: the asteroid's orbital elements are baked
-  in at build time (`AsteroidAngeljorba` in `OrbitalMechanics.kt`), using the
-  same fallback catalog values as the reference file.
+- **No network/INTERNET permission** *on the device*: the asteroid's orbital
+  elements are baked in at build time instead — the `:app:generateAsteroidElements`
+  Gradle task (`app/build.gradle.kts`) fetches real elements from JPL's
+  Small-Body Database during the build and generates `AsteroidElements.kt`,
+  falling back to the same baked-in catalog orbit as the reference file if the
+  API is unreachable that run. Either way the shipped APK itself makes no
+  network calls at runtime.
 - **Touch/drag camera dropped from the wallpaper itself** — live wallpapers don't
   reliably own touch — but not from the app: the main screen reproduces the HTML
   reference's drag/pinch camera controls, and the resulting angle is saved as

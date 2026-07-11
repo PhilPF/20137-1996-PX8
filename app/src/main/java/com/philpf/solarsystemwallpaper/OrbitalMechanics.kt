@@ -87,17 +87,9 @@ val PLANETS: List<PlanetElements> = listOf(
     ),
 )
 
-/** Baked-in fallback osculating elements for (20137) 1996 PX8 Angeljorba (see design handoff §Wallpaper-Specific Adaptations). */
-object AsteroidAngeljorba {
-    const val a = 2.2895838
-    const val e = 0.3045701
-    const val i = 5.86541
-    const val om = 150.65575
-    const val w = 0.0
-    const val ma = 0.0
-    /** Julian Date epoch this mean anomaly is referenced to (baked in at build time). */
-    const val epochJd = 2461232.5
-}
+// Osculating elements for (20137) 1996 PX8 Angeljorba live in the generated `AsteroidElements`
+// object (see app/build.gradle.kts :app:generateAsteroidElements) — fetched from JPL's
+// Small-Body Database at build time, falling back to a baked-in catalog orbit if unreachable.
 
 fun mod360(x: Double): Double {
     var m = x % 360.0

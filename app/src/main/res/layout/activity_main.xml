@@ -29,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:background="@color/chrome_bar_bg"
-        android:maxHeight="380dp"
+        android:maxHeight="420dp"
         android:fillViewport="false">
 
         <LinearLayout
@@ -38,93 +38,27 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <HorizontalScrollView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/toggleRow"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal" />
-
-            </HorizontalScrollView>
+            <!-- Always visible: accent color + the two primary actions -->
 
             <LinearLayout
                 android:id="@+id/swatchRow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="16dp" />
+                android:orientation="horizontal" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="16dp">
+                android:layout_marginTop="14dp">
 
                 <Button
-                    android:id="@+id/realTimeChip"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:layout_marginEnd="8dp"
-                    android:text="@string/chip_real_time"
-                    android:textAllCaps="false" />
-
-                <Button
-                    android:id="@+id/customChip"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="@string/chip_custom"
-                    android:textAllCaps="false" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/customControls"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="10dp">
-
-                <Button
-                    android:id="@+id/startDateButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textAllCaps="false" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:scrollbars="none">
-
-                    <LinearLayout
-                        android:id="@+id/speedRow"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-
-                </HorizontalScrollView>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="18dp">
-
-                <Button
-                    android:id="@+id/resetViewButton"
+                    android:id="@+id/moreOptionsButton"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:text="@string/reset_camera_button"
-                    android:textColor="@color/foreground"
+                    android:layout_marginEnd="10dp"
+                    android:minWidth="0dp"
+                    android:text="@string/more_options_collapsed"
                     android:textAllCaps="false" />
 
                 <Button
@@ -134,6 +68,100 @@
                     android:layout_weight="1"
                     android:text="@string/set_wallpaper_button"
                     android:textStyle="bold"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+            <!-- Hidden until "More options" is tapped -->
+
+            <LinearLayout
+                android:id="@+id/advancedPanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:background="@color/chrome_panel_bg" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/toggleRow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+
+                </HorizontalScrollView>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:layout_marginTop="14dp">
+
+                    <Button
+                        android:id="@+id/realTimeChip"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginEnd="8dp"
+                        android:text="@string/chip_real_time"
+                        android:textAllCaps="false" />
+
+                    <Button
+                        android:id="@+id/customChip"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/chip_custom"
+                        android:textAllCaps="false" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/customControls"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="10dp">
+
+                    <Button
+                        android:id="@+id/startDateButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textAllCaps="false" />
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/speedRow"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal" />
+
+                    </HorizontalScrollView>
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/resetViewButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="@string/reset_camera_button"
+                    android:textColor="@color/foreground"
                     android:textAllCaps="false" />
 
             </LinearLayout>

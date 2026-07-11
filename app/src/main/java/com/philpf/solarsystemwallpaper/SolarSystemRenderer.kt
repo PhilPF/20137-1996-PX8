@@ -98,7 +98,7 @@ class SolarSystemRenderer(private val density: Float) {
         sunCorePaint.color = if (mono) Color.WHITE else Color.parseColor("#ffe9a8")
         canvas.drawCircle(sunPos[0], sunPos[1], dp(5f), sunCorePaint)
 
-        val ae = AsteroidAngeljorba
+        val ae = AsteroidElements
         val asteroidPts = orbitPath(ae.a, ae.e, ae.i, ae.om, ae.w, 220)
         reusablePath.reset()
         asteroidPts.forEachIndexed { idx, pt ->

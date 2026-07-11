@@ -31,8 +31,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: WallpaperPrefs
     private lateinit var previewView: SolarSystemPreviewView
     private lateinit var titleText: TextView
-    private lateinit var toggleRow: LinearLayout
     private lateinit var swatchRow: LinearLayout
+    private lateinit var moreOptionsButton: Button
+    private lateinit var advancedPanel: LinearLayout
+    private lateinit var toggleRow: LinearLayout
     private lateinit var speedRow: LinearLayout
     private lateinit var customControls: LinearLayout
     private lateinit var realTimeChip: Button
@@ -62,8 +64,10 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.previewView)
         titleText = findViewById(R.id.titleText)
-        toggleRow = findViewById(R.id.toggleRow)
         swatchRow = findViewById(R.id.swatchRow)
+        moreOptionsButton = findViewById(R.id.moreOptionsButton)
+        advancedPanel = findViewById(R.id.advancedPanel)
+        toggleRow = findViewById(R.id.toggleRow)
         speedRow = findViewById(R.id.speedRow)
         customControls = findViewById(R.id.customControls)
         realTimeChip = findViewById(R.id.realTimeChip)
@@ -76,6 +80,7 @@ class MainActivity : AppCompatActivity() {
         buildSwatches()
         buildSpeedChips()
 
+        moreOptionsButton.setOnClickListener { toggleAdvancedPanel() }
         realTimeChip.setOnClickListener { setTimeMode(realTime = true) }
         customChip.setOnClickListener { setTimeMode(realTime = false) }
         startDateButton.setOnClickListener {
@@ -88,6 +93,14 @@ class MainActivity : AppCompatActivity() {
         setWallpaperButton.setOnClickListener { setLiveWallpaper() }
 
         refreshAll()
+    }
+
+    private fun toggleAdvancedPanel() {
+        val expanding = advancedPanel.visibility != android.view.View.VISIBLE
+        advancedPanel.visibility = if (expanding) android.view.View.VISIBLE else android.view.View.GONE
+        moreOptionsButton.text = getString(
+            if (expanding) R.string.more_options_expanded else R.string.more_options_collapsed,
+        )
     }
 
     override fun onResume() {
@@ -240,6 +253,8 @@ class MainActivity : AppCompatActivity() {
         setWallpaperButton.setTextColor(backgroundColor())
         resetViewButton.background = pillDrawable(panelColor(), accent)
         resetViewButton.setTextColor(foregroundColor())
+        moreOptionsButton.background = pillDrawable(panelColor(), accent)
+        moreOptionsButton.setTextColor(foregroundColor())
 
         refreshTimeControls()
     }

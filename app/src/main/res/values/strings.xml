@@ -5,6 +5,8 @@
     <string name="set_wallpaper_button">Set as Live Wallpaper</string>
     <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
     <string name="reset_camera_button">Reset View</string>
+    <string name="more_options_collapsed">Options ▾</string>
+    <string name="more_options_expanded">Options ▴</string>
 
     <string name="chip_monochrome">Mono</string>
     <string name="chip_planet_labels">Labels</string>

@@ -127,7 +127,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
             asteroidColorHex = prefs.asteroidColor,
         )
         val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
-        renderer.render(canvas, width.toFloat(), height.toFloat(), prefs.simulatedMillis(), camera, style)
+        renderer.render(canvas, width.toFloat(), height.toFloat(), prefs.simulatedMillis(), camera, style, prefs.asteroidOrbit)
     }
 
     companion object {

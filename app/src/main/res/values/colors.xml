@@ -8,4 +8,7 @@
     <color name="accent_default">#FFD166</color>
     <color name="chrome_panel_bg">#2B2F3B</color>
     <color name="chrome_bar_bg">#D9131620</color>
+    <color name="status_loading">#D8C070</color>
+    <color name="status_ok">#7FCB9E</color>
+    <color name="status_fallback">#D9A066</color>
 </resources>

@@ -3,6 +3,11 @@
 
     <uses-feature android:name="android.software.live_wallpaper" android:required="false" />
 
+    <!-- Used only by the foreground app (MainActivity) to fetch/verify the asteroid's real
+         orbital elements from JPL on demand; the wallpaper service itself never touches the
+         network, only reads whatever was last cached by WallpaperPrefs. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="false"
         android:icon="@drawable/wallpaper_thumbnail"

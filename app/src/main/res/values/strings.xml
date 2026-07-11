@@ -8,6 +8,10 @@
     <string name="more_options_collapsed">Options ▾</string>
     <string name="more_options_expanded">Options ▴</string>
 
+    <string name="status_loading">Fetching asteroid orbit from JPL…</string>
+    <string name="status_ok">Live JPL orbit (%1$s) · tap to refresh</string>
+    <string name="status_fallback">Catalog orbit — JPL unreachable · tap to retry</string>
+
     <string name="chip_monochrome">Mono</string>
     <string name="chip_planet_labels">Labels</string>
     <string name="chip_asteroid_label">Ast. label</string>

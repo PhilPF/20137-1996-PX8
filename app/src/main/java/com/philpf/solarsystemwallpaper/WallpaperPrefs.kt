@@ -51,6 +51,61 @@ class WallpaperPrefs(context: Context) {
     fun resetCamera() = setCamera(0.0, DEFAULT_TILT_DEG, 1.0)
 
     /**
+     * The asteroid orbit actually used for rendering: whatever was last fetched live from JPL
+     * (see [AsteroidOrbitFetcher], triggered from the app UI), or the build-time-baked
+     * [AsteroidElements] catalog orbit if a live fetch has never succeeded. Stored as strings
+     * (not Float) since the epoch is a large Julian Date where Float's ~7 significant digits
+     * would lose meaningful precision.
+     */
+    val asteroidOrbit: AsteroidOrbit
+        get() {
+            val a = prefs.getString(KEY_ASTEROID_A, null)?.toDoubleOrNull()
+            val e = prefs.getString(KEY_ASTEROID_E, null)?.toDoubleOrNull()
+            val i = prefs.getString(KEY_ASTEROID_I, null)?.toDoubleOrNull()
+            val om = prefs.getString(KEY_ASTEROID_OM, null)?.toDoubleOrNull()
+            val w = prefs.getString(KEY_ASTEROID_W, null)?.toDoubleOrNull()
+            val ma = prefs.getString(KEY_ASTEROID_MA, null)?.toDoubleOrNull()
+            val epoch = prefs.getString(KEY_ASTEROID_EPOCH, null)?.toDoubleOrNull()
+            return if (a != null && e != null && i != null && om != null && w != null && ma != null && epoch != null) {
+                AsteroidOrbit(a, e, i, om, w, ma, epoch)
+            } else {
+                AsteroidOrbit(
+                    AsteroidElements.a, AsteroidElements.e, AsteroidElements.i,
+                    AsteroidElements.om, AsteroidElements.w, AsteroidElements.ma, AsteroidElements.epochJd,
+                )
+            }
+        }
+
+    fun setAsteroidOrbit(orbit: AsteroidOrbit, sourceLabel: String) {
+        prefs.edit()
+            .putString(KEY_ASTEROID_A, orbit.a.toString())
+            .putString(KEY_ASTEROID_E, orbit.e.toString())
+            .putString(KEY_ASTEROID_I, orbit.i.toString())
+            .putString(KEY_ASTEROID_OM, orbit.om.toString())
+            .putString(KEY_ASTEROID_W, orbit.w.toString())
+            .putString(KEY_ASTEROID_MA, orbit.ma.toString())
+            .putString(KEY_ASTEROID_EPOCH, orbit.epochJd.toString())
+            .putString(KEY_ASTEROID_STATUS, STATUS_OK)
+            .putString(KEY_ASTEROID_STATUS_DETAIL, sourceLabel)
+            .apply()
+    }
+
+    fun setAsteroidFetchFailed(reason: String) {
+        prefs.edit()
+            .putString(KEY_ASTEROID_STATUS, STATUS_FALLBACK)
+            .putString(KEY_ASTEROID_STATUS_DETAIL, reason)
+            .apply()
+    }
+
+    fun setAsteroidFetchLoading() {
+        prefs.edit().putString(KEY_ASTEROID_STATUS, STATUS_LOADING).apply()
+    }
+
+    /** [STATUS_LOADING], [STATUS_OK], or [STATUS_FALLBACK] (default, before any fetch attempt). */
+    val asteroidStatus: String get() = prefs.getString(KEY_ASTEROID_STATUS, STATUS_FALLBACK) ?: STATUS_FALLBACK
+    val asteroidStatusDetail: String get() = prefs.getString(KEY_ASTEROID_STATUS_DETAIL, "") ?: ""
+
+    /**
      * Current simulated wall-clock time, in Unix millis. Real-time mode just returns "now".
      * Custom mode extrapolates forward from a persisted (simulated-date, real-date) anchor pair
      * at [speedDaysPerSec], so the position is deterministic and stable across engine restarts
@@ -103,6 +158,19 @@ class WallpaperPrefs(context: Context) {
         const val KEY_CAMERA_AZIMUTH = "pref_camera_azimuth"
         const val KEY_CAMERA_TILT = "pref_camera_tilt"
         const val KEY_CAMERA_ZOOM = "pref_camera_zoom"
+        const val KEY_ASTEROID_A = "pref_asteroid_a"
+        const val KEY_ASTEROID_E = "pref_asteroid_e"
+        const val KEY_ASTEROID_I = "pref_asteroid_i"
+        const val KEY_ASTEROID_OM = "pref_asteroid_om"
+        const val KEY_ASTEROID_W = "pref_asteroid_w"
+        const val KEY_ASTEROID_MA = "pref_asteroid_ma"
+        const val KEY_ASTEROID_EPOCH = "pref_asteroid_epoch"
+        const val KEY_ASTEROID_STATUS = "pref_asteroid_status"
+        const val KEY_ASTEROID_STATUS_DETAIL = "pref_asteroid_status_detail"
+
+        const val STATUS_LOADING = "loading"
+        const val STATUS_OK = "ok"
+        const val STATUS_FALLBACK = "fallback"
 
         const val DEFAULT_ACCENT_HEX = "#ffd166"
 

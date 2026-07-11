@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: WallpaperPrefs
     private lateinit var previewView: SolarSystemPreviewView
     private lateinit var titleText: TextView
+    private lateinit var statusText: TextView
     private lateinit var swatchRow: LinearLayout
     private lateinit var moreOptionsButton: Button
     private lateinit var advancedPanel: LinearLayout
@@ -64,6 +65,7 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.previewView)
         titleText = findViewById(R.id.titleText)
+        statusText = findViewById(R.id.statusText)
         swatchRow = findViewById(R.id.swatchRow)
         moreOptionsButton = findViewById(R.id.moreOptionsButton)
         advancedPanel = findViewById(R.id.advancedPanel)
@@ -91,8 +93,33 @@ class MainActivity : AppCompatActivity() {
         }
         resetViewButton.setOnClickListener { previewView.resetCamera() }
         setWallpaperButton.setOnClickListener { setLiveWallpaper() }
+        statusText.setOnClickListener { fetchAsteroidOrbit() }
 
         refreshAll()
+        fetchAsteroidOrbit()
+    }
+
+    /**
+     * Fetches the asteroid's real orbital elements from JPL on demand, so the trajectory is
+     * verified live rather than trusting whatever was baked in at build time (see
+     * AsteroidOrbitFetcher / :app:generateAsteroidElements in app/build.gradle.kts for the
+     * build-time fallback this uses if the fetch fails). Runs off the main thread; result is
+     * cached in WallpaperPrefs so the wallpaper engine picks it up on its next frame too.
+     */
+    private fun fetchAsteroidOrbit() {
+        prefs.setAsteroidFetchLoading()
+        refreshStatus()
+        Thread {
+            val result = AsteroidOrbitFetcher.fetch()
+            runOnUiThread {
+                when (result) {
+                    is AsteroidFetchResult.Success -> prefs.setAsteroidOrbit(result.orbit, result.sourceLabel)
+                    is AsteroidFetchResult.Failure -> prefs.setAsteroidFetchFailed(result.reason)
+                }
+                refreshStatus()
+                previewView.invalidate()
+            }
+        }.start()
     }
 
     private fun toggleAdvancedPanel() {
@@ -257,6 +284,17 @@ class MainActivity : AppCompatActivity() {
         moreOptionsButton.setTextColor(foregroundColor())
 
         refreshTimeControls()
+        refreshStatus()
+    }
+
+    private fun refreshStatus() {
+        val (text, color) = when (prefs.asteroidStatus) {
+            WallpaperPrefs.STATUS_OK -> getString(R.string.status_ok, prefs.asteroidStatusDetail) to R.color.status_ok
+            WallpaperPrefs.STATUS_LOADING -> getString(R.string.status_loading) to R.color.status_loading
+            else -> getString(R.string.status_fallback) to R.color.status_fallback
+        }
+        statusText.text = text
+        statusText.setTextColor(getColor(color))
     }
 
     private fun refreshTimeControls() {

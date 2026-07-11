@@ -1,60 +1,144 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp"
     android:background="@color/background">
 
+    <com.philpf.solarsystemwallpaper.SolarSystemPreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
     <TextView
+        android:id="@+id/titleText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="20dp"
         android:text="@string/app_name"
-        android:textColor="@color/foreground"
-        android:textSize="24sp"
+        android:textSize="18sp"
         android:textStyle="bold"
         android:letterSpacing="0.01"
-        android:layout_marginBottom="12dp" />
+        android:shadowColor="@color/background"
+        android:shadowRadius="6"
+        android:shadowDx="0"
+        android:shadowDy="0" />
 
-    <TextView
-        android:layout_width="wrap_content"
+    <ScrollView
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/main_description"
-        android:textColor="@color/foreground"
-        android:alpha="0.85"
-        android:textSize="14sp"
-        android:gravity="center"
-        android:layout_marginBottom="32dp" />
+        android:layout_gravity="bottom"
+        android:background="@color/chrome_bar_bg"
+        android:maxHeight="380dp"
+        android:fillViewport="false">
 
-    <Button
-        android:id="@+id/setWallpaperButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/pill_button_background_accent"
-        android:text="@string/set_wallpaper_button"
-        android:textColor="@color/background"
-        android:textStyle="bold"
-        android:textAllCaps="false" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
 
-    <Button
-        android:id="@+id/adjustViewButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:background="@drawable/pill_button_background"
-        android:text="@string/adjust_view_button"
-        android:textColor="@color/foreground"
-        android:textAllCaps="false" />
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none">
 
-    <Button
-        android:id="@+id/openSettingsButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:background="@drawable/pill_button_background"
-        android:text="@string/open_settings_button"
-        android:textColor="@color/foreground"
-        android:textAllCaps="false" />
+                <LinearLayout
+                    android:id="@+id/toggleRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
 
-</LinearLayout>
+            </HorizontalScrollView>
+
+            <LinearLayout
+                android:id="@+id/swatchRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp">
+
+                <Button
+                    android:id="@+id/realTimeChip"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/chip_real_time"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/customChip"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/chip_custom"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/customControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="10dp">
+
+                <Button
+                    android:id="@+id/startDateButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textAllCaps="false" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/speedRow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+
+                </HorizontalScrollView>
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="18dp">
+
+                <Button
+                    android:id="@+id/resetViewButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
+                    android:text="@string/reset_camera_button"
+                    android:textColor="@color/foreground"
+                    android:textAllCaps="false" />
+
+                <Button
+                    android:id="@+id/setWallpaperButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/set_wallpaper_button"
+                    android:textStyle="bold"
+                    android:textAllCaps="false" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+</FrameLayout>

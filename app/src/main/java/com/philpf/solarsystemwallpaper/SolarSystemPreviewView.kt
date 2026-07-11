@@ -8,11 +8,12 @@ import android.view.ScaleGestureDetector
 import android.view.View
 
 /**
- * Interactive live preview used by [CameraPreviewActivity]: single-finger drag rotates azimuth
- * and tilts the camera, pinch zooms — the same gesture mapping as the design handoff's
+ * Interactive live preview backing the app's single main screen: single-finger drag rotates
+ * azimuth and tilts the camera, pinch zooms — the same gesture mapping as the design handoff's
  * `setupCameraControls()` (drag sensitivity 0.35/0.25, tilt clamped 0-85deg, zoom clamped
- * 0.3-6x). Renders continuously via [SolarSystemRenderer] so planet motion stays visible while
- * the user positions the view.
+ * 0.3-6x). The camera auto-persists whenever a gesture ends, since positioning happens on the
+ * same screen used to set the wallpaper (no separate "save" step). Renders continuously via
+ * [SolarSystemRenderer] so planet motion stays visible while the user positions the view.
  */
 class SolarSystemPreviewView @JvmOverloads constructor(
     context: Context,
@@ -40,6 +41,10 @@ class SolarSystemPreviewView @JvmOverloads constructor(
                 zoom = (zoom * detector.scaleFactor).coerceIn(0.3, 6.0)
                 invalidate()
                 return true
+            }
+
+            override fun onScaleEnd(detector: ScaleGestureDetector) {
+                saveCamera()
             }
         },
     )
@@ -107,6 +112,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
                     lastX = event.getX(0)
                     lastY = event.getY(0)
                 }
+                saveCamera()
             }
         }
         return true

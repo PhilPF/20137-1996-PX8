@@ -1,70 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Solar System Tracker</string>
+    <string name="app_name">20137-1996-PX8</string>
     <string name="wallpaper_description">Solar system + near-Earth asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
-    <string name="settings_title">Wallpaper Settings</string>
-    <string name="main_description">Sun, all 8 planets, and near-Earth asteroid (20137) Angeljorba, animated live on your home screen using real orbital mechanics.</string>
     <string name="set_wallpaper_button">Set as Live Wallpaper</string>
-    <string name="open_settings_button">Customize</string>
-    <string name="adjust_view_button">Adjust View</string>
-    <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose Solar System Tracker.</string>
+    <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
+    <string name="reset_camera_button">Reset View</string>
 
-    <string name="camera_preview_title">Solar System — 20137 Angeljorba</string>
-    <string name="camera_preview_hint">Drag to rotate · pinch to zoom</string>
-    <string name="reset_camera_button">Reset</string>
-    <string name="use_this_view_button">Use This View</string>
-    <string name="camera_saved_toast">Saved — the wallpaper will use this view</string>
-
-    <string name="pref_category_appearance">Appearance</string>
-    <string name="pref_monochrome_title">Monochrome mode</string>
-    <string name="pref_monochrome_summary">Render everything in white/gray so it works over any home-screen icon color scheme</string>
-    <string name="pref_show_planet_labels_title">Show planet labels</string>
-    <string name="pref_show_asteroid_label_title">Show asteroid label</string>
-    <string name="pref_asteroid_color_title">Asteroid accent color</string>
-
-    <string name="pref_category_motion">Motion</string>
-    <string name="pref_time_mode_title">Time drive</string>
-    <string name="pref_time_mode_summary">Real-time follows the actual date/time; Custom starts from a date/time you pick and advances at the speed below</string>
-    <string name="pref_speed_title">Simulation speed</string>
-    <string name="pref_speed_summary">Only used when Time drive is set to Custom</string>
-    <string name="pref_start_date_title">Start date/time</string>
-    <string name="pref_start_date_now">Now</string>
-    <string name="pref_reset_to_now_title">Jump to now</string>
-    <string name="pref_reset_to_now_summary">Resets the custom start date/time back to the current moment</string>
-    <string name="pref_azimuth_drift_title">Slow ambient camera drift</string>
-    <string name="pref_azimuth_drift_summary">Gently rotates the view over time</string>
-    <string name="pref_parallax_title">Home-screen swipe parallax</string>
-    <string name="pref_parallax_summary">Subtly shifts the camera angle as you swipe between home screens</string>
+    <string name="chip_monochrome">Mono</string>
+    <string name="chip_planet_labels">Labels</string>
+    <string name="chip_asteroid_label">Ast. label</string>
+    <string name="chip_drift">Drift</string>
+    <string name="chip_parallax">Parallax</string>
+    <string name="chip_real_time">Real-time</string>
+    <string name="chip_custom">Custom</string>
 
     <string-array name="asteroid_color_entries">
         <item>Amber</item>
         <item>Coral</item>
         <item>Sky blue</item>
         <item>Pink</item>
+        <item>Mint</item>
+        <item>Violet</item>
     </string-array>
     <string-array name="asteroid_color_values">
         <item>#ffd166</item>
         <item>#ff6b4a</item>
         <item>#5fd0ff</item>
         <item>#ff5fa0</item>
+        <item>#6fe6b0</item>
+        <item>#b18cff</item>
     </string-array>
 
-    <string-array name="time_mode_entries">
-        <item>Real-time</item>
-        <item>Custom (start date + speed)</item>
-    </string-array>
-    <string-array name="time_mode_values">
-        <item>real_time</item>
-        <item>custom</item>
-    </string-array>
-
-    <string-array name="speed_entries">
-        <item>0.5 days/sec (slow)</item>
-        <item>2 days/sec</item>
-        <item>8 days/sec</item>
-        <item>30 days/sec (default)</item>
-        <item>120 days/sec (fast)</item>
-        <item>400 days/sec (very fast)</item>
+    <string-array name="speed_chip_labels">
+        <item>0.5</item>
+        <item>2</item>
+        <item>8</item>
+        <item>30</item>
+        <item>120</item>
+        <item>400</item>
     </string-array>
     <string-array name="speed_values">
         <item>0.5</item>

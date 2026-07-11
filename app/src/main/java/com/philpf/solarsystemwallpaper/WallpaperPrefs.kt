@@ -2,21 +2,40 @@ package com.philpf.solarsystemwallpaper
 
 import android.content.Context
 import android.content.SharedPreferences
-import androidx.preference.PreferenceManager
 
-/** Thin wrapper around the default SharedPreferences backing res/xml/settings_preferences.xml. */
+/**
+ * Wrapper around the app's SharedPreferences (same default file historically used by
+ * androidx.preference, `<packageName>_preferences`, kept for continuity even though the
+ * settings UI is no longer a Preference screen).
+ */
 class WallpaperPrefs(context: Context) {
 
-    private val prefs: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    private val prefs: SharedPreferences =
+        context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
 
     val monochrome: Boolean get() = prefs.getBoolean(KEY_MONOCHROME, false)
     val showPlanetLabels: Boolean get() = prefs.getBoolean(KEY_SHOW_PLANET_LABELS, false)
     val showAsteroidLabel: Boolean get() = prefs.getBoolean(KEY_SHOW_ASTEROID_LABEL, false)
-    val asteroidColor: String get() = prefs.getString(KEY_ASTEROID_COLOR, "#ffd166") ?: "#ffd166"
+
+    /** Also used as the app's own UI accent color, so asteroid rendering and app chrome always match. */
+    val asteroidColor: String get() = prefs.getString(KEY_ASTEROID_COLOR, DEFAULT_ACCENT_HEX) ?: DEFAULT_ACCENT_HEX
     val azimuthDrift: Boolean get() = prefs.getBoolean(KEY_AZIMUTH_DRIFT, true)
     val parallax: Boolean get() = prefs.getBoolean(KEY_PARALLAX, true)
+    val timeModeIsRealTime: Boolean get() = prefs.getString(KEY_TIME_MODE, "real_time") == "real_time"
+    val speedDaysPerSec: Double
+        get() = prefs.getString(KEY_SPEED_DAYS_PER_SEC, null)?.toDoubleOrNull() ?: DEFAULT_SPEED_DAYS_PER_SEC
 
-    /** Base camera set via the in-app "Adjust view" screen; ambient drift/parallax are added on top of this. */
+    fun setMonochrome(value: Boolean) = prefs.edit().putBoolean(KEY_MONOCHROME, value).apply()
+    fun setShowPlanetLabels(value: Boolean) = prefs.edit().putBoolean(KEY_SHOW_PLANET_LABELS, value).apply()
+    fun setShowAsteroidLabel(value: Boolean) = prefs.edit().putBoolean(KEY_SHOW_ASTEROID_LABEL, value).apply()
+    fun setAzimuthDrift(value: Boolean) = prefs.edit().putBoolean(KEY_AZIMUTH_DRIFT, value).apply()
+    fun setParallax(value: Boolean) = prefs.edit().putBoolean(KEY_PARALLAX, value).apply()
+    fun setAsteroidColor(hex: String) = prefs.edit().putString(KEY_ASTEROID_COLOR, hex).apply()
+    fun setTimeModeIsRealTime(value: Boolean) =
+        prefs.edit().putString(KEY_TIME_MODE, if (value) "real_time" else "custom").apply()
+    fun setSpeedDaysPerSec(value: Double) = prefs.edit().putString(KEY_SPEED_DAYS_PER_SEC, value.toString()).apply()
+
+    /** Base camera set by dragging/pinching the preview; ambient drift/parallax are added on top of this. */
     val cameraAzimuthDeg: Double get() = prefs.getFloat(KEY_CAMERA_AZIMUTH, 0f).toDouble()
     val cameraTiltDeg: Double get() = prefs.getFloat(KEY_CAMERA_TILT, DEFAULT_TILT_DEG.toFloat()).toDouble()
     val cameraZoom: Double get() = prefs.getFloat(KEY_CAMERA_ZOOM, 1f).toDouble()
@@ -31,11 +50,6 @@ class WallpaperPrefs(context: Context) {
 
     fun resetCamera() = setCamera(0.0, DEFAULT_TILT_DEG, 1.0)
 
-    private val isRealTime: Boolean get() = prefs.getString(KEY_TIME_MODE, "real_time") == "real_time"
-
-    private val speedDaysPerSec: Double
-        get() = prefs.getString(KEY_SPEED_DAYS_PER_SEC, null)?.toDoubleOrNull() ?: DEFAULT_SPEED_DAYS_PER_SEC
-
     /**
      * Current simulated wall-clock time, in Unix millis. Real-time mode just returns "now".
      * Custom mode extrapolates forward from a persisted (simulated-date, real-date) anchor pair
@@ -43,7 +57,7 @@ class WallpaperPrefs(context: Context) {
      * (screen off/on, wallpaper re-bind, etc.) without needing any in-memory state.
      */
     fun simulatedMillis(): Long {
-        if (isRealTime) return System.currentTimeMillis()
+        if (timeModeIsRealTime) return System.currentTimeMillis()
         val (anchorWallMillis, anchorSimMillis) = customAnchor()
         val elapsedRealSeconds = (System.currentTimeMillis() - anchorWallMillis) / 1000.0
         val simElapsedMillis = (elapsedRealSeconds * speedDaysPerSec * 86400000.0).toLong()
@@ -56,12 +70,6 @@ class WallpaperPrefs(context: Context) {
             .putLong(KEY_ANCHOR_WALL_MILLIS, System.currentTimeMillis())
             .putLong(KEY_ANCHOR_SIM_MILLIS, startMillis)
             .apply()
-    }
-
-    /** Re-anchors custom mode to start counting forward from the current real date/time. */
-    fun resetCustomStartToNow() {
-        val now = System.currentTimeMillis()
-        setCustomStartDate(now)
     }
 
     private fun customAnchor(): Pair<Long, Long> {
@@ -95,6 +103,8 @@ class WallpaperPrefs(context: Context) {
         const val KEY_CAMERA_AZIMUTH = "pref_camera_azimuth"
         const val KEY_CAMERA_TILT = "pref_camera_tilt"
         const val KEY_CAMERA_ZOOM = "pref_camera_zoom"
+
+        const val DEFAULT_ACCENT_HEX = "#ffd166"
 
         /** Default custom-mode rate, matching the design handoff's recommended ambient speed. */
         const val DEFAULT_SPEED_DAYS_PER_SEC = 30.0

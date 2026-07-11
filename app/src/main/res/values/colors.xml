@@ -6,6 +6,6 @@
     <color name="sun_core">#FFE9A8</color>
     <color name="sun_glow">#FFF3C4</color>
     <color name="accent_default">#FFD166</color>
-    <color name="chrome_panel_bg">#CC1E212B</color>
+    <color name="chrome_panel_bg">#2B2F3B</color>
     <color name="chrome_bar_bg">#D9131620</color>
 </resources>

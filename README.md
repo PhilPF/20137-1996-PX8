@@ -24,8 +24,13 @@ orbital math and visual design were ported natively.
   `Canvas`, ~30fps, paused when not visible).
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SettingsActivity.kt` +
   `WallpaperPrefs.kt` — the wallpaper picker's "Settings" screen (monochrome mode,
-  label toggles, asteroid accent color, time drive, ambient camera drift, swipe
-  parallax).
+  label toggles, asteroid accent color, ambient camera drift, swipe parallax) and
+  the time-drive controls: **Real-time** vs **Custom**, a date/time picker to set
+  where the simulation starts, and a speed selector (0.5–400 simulated days per
+  real second, matching the original prototype's speed presets). Custom mode is
+  anchored via a persisted (real-time, sim-time) pair in `WallpaperPrefs`, so the
+  extrapolated position survives the wallpaper engine being torn down and
+  recreated (screen off/on, etc.) without drifting or resetting.
 
 ## Decisions made per the handoff's "developer to decide" list
 
@@ -37,8 +42,9 @@ orbital math and visual design were ported natively.
 - **Touch/drag camera and control bar dropped** — live wallpapers don't reliably
   own touch. The camera is a fixed 22° tilt; azimuth optionally drifts slowly and
   optionally responds to home-screen swipe offset (both toggleable in Settings).
-- **Time drive**: defaults to real wall-clock time, with an "Accelerated
-  (30 days/sec)" option in Settings for more visible ambient motion.
+- **Time drive**: defaults to real wall-clock time, with a "Custom" mode in
+  Settings that lets you pick a start date/time and a speed (0.5–400 simulated
+  days/sec) for more visible ambient motion or jumping to an arbitrary date.
 - **Target 30fps**, render loop stops in `onVisibilityChanged(false)` /
   `onSurfaceDestroyed`.
 

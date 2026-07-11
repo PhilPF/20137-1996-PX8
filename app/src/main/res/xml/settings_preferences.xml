@@ -38,6 +38,24 @@
             android:entryValues="@array/time_mode_values"
             android:defaultValue="real_time" />
 
+        <Preference
+            android:key="pref_custom_start_date"
+            android:title="@string/pref_start_date_title"
+            android:summary="@string/pref_start_date_now" />
+
+        <Preference
+            android:key="pref_reset_to_now"
+            android:title="@string/pref_reset_to_now_title"
+            android:summary="@string/pref_reset_to_now_summary" />
+
+        <ListPreference
+            android:key="pref_speed_days_per_sec"
+            android:title="@string/pref_speed_title"
+            android:summary="@string/pref_speed_summary"
+            android:entries="@array/speed_entries"
+            android:entryValues="@array/speed_values"
+            android:defaultValue="30" />
+
         <SwitchPreferenceCompat
             android:key="pref_azimuth_drift"
             android:title="@string/pref_azimuth_drift_title"

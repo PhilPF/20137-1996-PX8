@@ -37,7 +37,6 @@ class SolarSystemWallpaperService : WallpaperService() {
         private var xOffset = 0.5f
         private var azimuthDriftDeg = 0.0
         private var lastFrameElapsedRealtime = 0L
-        private var acceleratedSimMillis = System.currentTimeMillis()
 
         private val bgPaint = Paint().apply { color = Color.parseColor("#171A24") }
         private val orbitPaint = Paint().apply { style = Paint.Style.STROKE; strokeWidth = dp(1f); isAntiAlias = true }
@@ -162,14 +161,7 @@ class SolarSystemWallpaperService : WallpaperService() {
                 azimuthDriftDeg = (azimuthDriftDeg + WallpaperPrefs.AZIMUTH_DRIFT_DEG_PER_SEC * dtSec) % 360.0
             }
 
-            val simMillis: Long = if (prefs.realTime) {
-                System.currentTimeMillis()
-            } else {
-                acceleratedSimMillis += (dtSec * WallpaperPrefs.ACCELERATED_DAYS_PER_SEC * 86400000.0).toLong()
-                acceleratedSimMillis
-            }
-
-            val jd = jdFromUnixMillis(simMillis)
+            val jd = jdFromUnixMillis(prefs.simulatedMillis())
             val t = (jd - 2451545.0) / 36525.0
 
             val mono = prefs.monochrome

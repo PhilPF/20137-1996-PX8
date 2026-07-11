@@ -16,7 +16,13 @@
 
     <string name="pref_category_motion">Motion</string>
     <string name="pref_time_mode_title">Time drive</string>
-    <string name="pref_time_mode_summary">Real-time follows the actual date/time; Accelerated advances 30 simulated days per second for visible ambient motion</string>
+    <string name="pref_time_mode_summary">Real-time follows the actual date/time; Custom starts from a date/time you pick and advances at the speed below</string>
+    <string name="pref_speed_title">Simulation speed</string>
+    <string name="pref_speed_summary">Only used when Time drive is set to Custom</string>
+    <string name="pref_start_date_title">Start date/time</string>
+    <string name="pref_start_date_now">Now</string>
+    <string name="pref_reset_to_now_title">Jump to now</string>
+    <string name="pref_reset_to_now_summary">Resets the custom start date/time back to the current moment</string>
     <string name="pref_azimuth_drift_title">Slow ambient camera drift</string>
     <string name="pref_azimuth_drift_summary">Gently rotates the view over time</string>
     <string name="pref_parallax_title">Home-screen swipe parallax</string>
@@ -37,10 +43,27 @@
 
     <string-array name="time_mode_entries">
         <item>Real-time</item>
-        <item>Accelerated (30 days/sec)</item>
+        <item>Custom (start date + speed)</item>
     </string-array>
     <string-array name="time_mode_values">
         <item>real_time</item>
-        <item>accelerated</item>
+        <item>custom</item>
+    </string-array>
+
+    <string-array name="speed_entries">
+        <item>0.5 days/sec (slow)</item>
+        <item>2 days/sec</item>
+        <item>8 days/sec</item>
+        <item>30 days/sec (default)</item>
+        <item>120 days/sec (fast)</item>
+        <item>400 days/sec (very fast)</item>
+    </string-array>
+    <string-array name="speed_values">
+        <item>0.5</item>
+        <item>2</item>
+        <item>8</item>
+        <item>30</item>
+        <item>120</item>
+        <item>400</item>
     </string-array>
 </resources>

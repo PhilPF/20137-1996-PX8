@@ -39,6 +39,26 @@ Dragging/pinching the preview auto-saves the camera angle as soon as the
 gesture ends — there's no separate "save" step, since positioning happens on
 the same screen used to set the wallpaper.
 
+## Home-screen widget
+
+A resizable widget (`SolarSystemWidgetProvider.kt`) shows the same scene as
+the wallpaper — same renderer, same saved camera, accent color, and asteroid
+orbit from `WallpaperPrefs` — at whatever size you place/resize it to on the
+home screen. It excludes the wallpaper's ambient azimuth drift and swipe
+parallax, since those are continuous-animation effects with no equivalent for
+a periodically-refreshed static image; everything else (planet positions,
+camera angle, appearance settings) matches exactly.
+
+Widgets don't get a continuous render surface the way a wallpaper does —
+Android enforces a 30-minute minimum background refresh interval platform-wide
+for battery reasons, which isn't something an app can configure around
+without requesting the "exact alarms" special permission (deliberately not
+added here, to keep the permission footprint minimal). To keep it useful
+despite that floor, the widget also redraws immediately whenever: you resize
+it, any setting changes, you save a new camera angle, or a trajectory fetch
+completes — `WallpaperPrefs` calls `SolarSystemWidgetProvider.requestUpdate()`
+after every mutation. Tapping the widget opens the app.
+
 ## How the trajectories are computed
 
 All position math lives in `OrbitalMechanics.kt`, in plain functions with no
@@ -104,6 +124,9 @@ differs.
   — the `WallpaperService.Engine` that owns the render loop (`SurfaceHolder` +
   `Canvas`, ~30fps, paused when not visible) and layers ambient azimuth drift /
   swipe parallax on top of the saved camera.
+- `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWidgetProvider.kt`
+  — the resizable home-screen widget; renders the same scene to a `Bitmap` and
+  pushes it via `RemoteViews` (widgets don't get a `Canvas` render surface).
 - `app/src/main/java/com/philpf/solarsystemwallpaper/WallpaperPrefs.kt` — all
   persisted state (appearance, time drive, saved camera). Custom time mode and
   the saved camera are both anchored via persisted values here rather than

@@ -10,8 +10,12 @@ import android.content.SharedPreferences
  */
 class WallpaperPrefs(context: Context) {
 
+    private val appContext = context.applicationContext
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("${context.packageName}_preferences", Context.MODE_PRIVATE)
+        appContext.getSharedPreferences("${appContext.packageName}_preferences", Context.MODE_PRIVATE)
+
+    /** Any home-screen widget instances should redraw right away to reflect what just changed. */
+    private fun notifyWidgets() = SolarSystemWidgetProvider.requestUpdate(appContext)
 
     val monochrome: Boolean get() = prefs.getBoolean(KEY_MONOCHROME, false)
     val showPlanetLabels: Boolean get() = prefs.getBoolean(KEY_SHOW_PLANET_LABELS, false)
@@ -25,15 +29,38 @@ class WallpaperPrefs(context: Context) {
     val speedDaysPerSec: Double
         get() = prefs.getString(KEY_SPEED_DAYS_PER_SEC, null)?.toDoubleOrNull() ?: DEFAULT_SPEED_DAYS_PER_SEC
 
-    fun setMonochrome(value: Boolean) = prefs.edit().putBoolean(KEY_MONOCHROME, value).apply()
-    fun setShowPlanetLabels(value: Boolean) = prefs.edit().putBoolean(KEY_SHOW_PLANET_LABELS, value).apply()
-    fun setShowAsteroidLabel(value: Boolean) = prefs.edit().putBoolean(KEY_SHOW_ASTEROID_LABEL, value).apply()
+    fun setMonochrome(value: Boolean) {
+        prefs.edit().putBoolean(KEY_MONOCHROME, value).apply()
+        notifyWidgets()
+    }
+
+    fun setShowPlanetLabels(value: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_PLANET_LABELS, value).apply()
+        notifyWidgets()
+    }
+
+    fun setShowAsteroidLabel(value: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_ASTEROID_LABEL, value).apply()
+        notifyWidgets()
+    }
+
     fun setAzimuthDrift(value: Boolean) = prefs.edit().putBoolean(KEY_AZIMUTH_DRIFT, value).apply()
     fun setParallax(value: Boolean) = prefs.edit().putBoolean(KEY_PARALLAX, value).apply()
-    fun setAsteroidColor(hex: String) = prefs.edit().putString(KEY_ASTEROID_COLOR, hex).apply()
-    fun setTimeModeIsRealTime(value: Boolean) =
+
+    fun setAsteroidColor(hex: String) {
+        prefs.edit().putString(KEY_ASTEROID_COLOR, hex).apply()
+        notifyWidgets()
+    }
+
+    fun setTimeModeIsRealTime(value: Boolean) {
         prefs.edit().putString(KEY_TIME_MODE, if (value) "real_time" else "custom").apply()
-    fun setSpeedDaysPerSec(value: Double) = prefs.edit().putString(KEY_SPEED_DAYS_PER_SEC, value.toString()).apply()
+        notifyWidgets()
+    }
+
+    fun setSpeedDaysPerSec(value: Double) {
+        prefs.edit().putString(KEY_SPEED_DAYS_PER_SEC, value.toString()).apply()
+        notifyWidgets()
+    }
 
     /** Base camera set by dragging/pinching the preview; ambient drift/parallax are added on top of this. */
     val cameraAzimuthDeg: Double get() = prefs.getFloat(KEY_CAMERA_AZIMUTH, 0f).toDouble()
@@ -46,6 +73,7 @@ class WallpaperPrefs(context: Context) {
             .putFloat(KEY_CAMERA_TILT, tiltDeg.toFloat())
             .putFloat(KEY_CAMERA_ZOOM, zoom.toFloat())
             .apply()
+        notifyWidgets()
     }
 
     fun resetCamera() = setCamera(0.0, DEFAULT_TILT_DEG, 1.0)
@@ -88,6 +116,7 @@ class WallpaperPrefs(context: Context) {
             .putString(KEY_ASTEROID_STATUS, STATUS_OK)
             .putString(KEY_ASTEROID_STATUS_DETAIL, sourceLabel)
             .apply()
+        notifyWidgets()
     }
 
     fun setAsteroidFetchFailed(reason: String) {
@@ -125,6 +154,7 @@ class WallpaperPrefs(context: Context) {
             .putLong(KEY_ANCHOR_WALL_MILLIS, System.currentTimeMillis())
             .putLong(KEY_ANCHOR_SIM_MILLIS, startMillis)
             .apply()
+        notifyWidgets()
     }
 
     private fun customAnchor(): Pair<Long, Long> {

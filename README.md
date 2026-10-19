@@ -32,19 +32,30 @@ fall back to a translucent fill.
   JPL data, amber: fetching, orange: built-in fallback) and the simulated date
   (marked "≈ extrapolated" outside the range the data covers). Tap it to jump
   to the Data tab.
-- **Dock** — the options button and **Set as Wallpaper**, which opens the
-  system's live-wallpaper preview/set screen directly
-  (`ACTION_CHANGE_LIVE_WALLPAPER`), bypassing OEM wallpaper pickers that don't
-  show a live wallpapers category.
-- **Options sheet** — slides up above the dock and shows one tab at a time:
+- **Bottom tab bar** — Time, Style, View, Data. Tapping a tab opens its
+  options in a sheet just above the bar (tap it again, or Back, to close):
   - *Time*: Real-time or Custom. Custom has a start date (1000–2999 AD), a
     "Start from now" shortcut, a speed (0.5–400 simulated days per second) and
     a loop length (1–100 years).
-  - *Style*: accent color, proportional sizes, planet labels, asteroid label,
-    monochrome.
-  - *View*: slow camera drift, home-screen swipe parallax, reset camera.
+  - *Style*: accent color; body size (a slider from 0.3× to 2×, scaling the
+    Sun, planets and asteroid marker together) and proportional sizes; planet
+    labels, asteroid label, monochrome.
+  - *View*: distances from the Sun (linear, square root or log); camera (go to
+    saved view, save this view, forget saved view); use on home screen (add
+    the widget, set as live wallpaper); live wallpaper motion (slow drift,
+    swipe parallax).
   - *Data*: status, source and last update of the asteroid data, a refresh
     button and a short explanation.
+
+"Add widget" asks the launcher to place the widget directly
+(`requestPinAppWidget`); launchers that don't support that get instructions
+instead. "Set as live wallpaper" opens the system's live-wallpaper preview/set
+screen directly (`ACTION_CHANGE_LIVE_WALLPAPER`), bypassing OEM wallpaper
+pickers that don't show a live wallpapers category.
+
+The saved view is separate from the current camera: explore freely, then "Go to
+saved view" glides back to it. The wallpaper and widget always show the current
+camera, i.e. whatever view you leave the app on.
 
 The accent color tints the asteroid *and* the app's own controls, so they
 always match. All panels fade while you drag the scene, so they don't hide
@@ -123,8 +134,15 @@ differs.
    `r = a(1−e²)/(1+e·cos ν)`, since there's no "time" involved in tracing the
    whole shape.
 5. **3D → 2D screen projection**, in `ViewProjection.kt`: each point's
-   distance from the Sun is compressed by `sqrt()` (so Neptune isn't pushed
-   off-screen relative to Mercury), then rotated by the camera's azimuth and
+   distance from the Sun is mapped to screen distance by the chosen scale
+   (View tab), with Neptune's orbit (31 AU) at the edge of the view:
+   - *Linear*: `r / 31`, true proportions; the inner planets huddle around the
+     Sun, so zoom (up to 12×) to see them.
+   - *Square root* (default, as in the handoff): `√(r / 31)`.
+   - *Log*: `ln(1 + r/0.3) / ln(1 + 31/0.3)`; spreads the inner planets out the
+     most. The 0.3 AU "knee" keeps it roughly linear right next to the Sun.
+
+   Only the distance is rescaled, never the direction. The point is then rotated by the camera's azimuth and
    viewed from its tilt angle — the same camera you set by dragging/pinching
    the preview. The camera sits above the ecliptic with north up, so the near
    side of an orbit is lower on screen. (The handoff's projection had the
@@ -135,7 +153,14 @@ differs.
 6. **Sizes.** By default every planet is the same small dot. *Proportional
    sizes* (Style tab) scales each by its real radius, compressed as
    `radius^0.42` so Mercury stays visible and Jupiter doesn't swamp the inner
-   planets, and enlarges the Sun. Distances are never to scale (see step 5).
+   planets, and enlarges the Sun. The *body size* slider then multiplies every
+   size (Sun, planets, asteroid dot and ring) by 0.3×–2×, so the Sun's glow
+   doesn't have to cover the inner planets.
+7. **Background.** A dark navy radial gradient with a faint warm haze around
+   the Sun. The colors are so close that a normal 8-bit gradient shows visible
+   rings, so it is computed per pixel with a little random noise before
+   rounding (dithering) and cached until the size changes. The widget bitmap
+   and the wallpaper surface use full 8-bit color for the same reason.
 
 ## Project layout
 
@@ -154,7 +179,7 @@ differs.
   live wallpaper and the in-app preview so both stay pixel-identical.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/MainActivity.kt` +
   `SolarSystemPreviewView.kt` — the single app screen described above. The
-  preview (drag 0.35/0.25 sensitivity, tilt clamped 0–85°, zoom 0.3–6×, as in
+  preview (drag 0.35/0.25 sensitivity, tilt clamped 0–85°, zoom 0.3–12× (the reference stopped at 6×), as in
   the reference's `setupCameraControls()`) is also the scene source the glass
   panels blur.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWallpaperService.kt`
@@ -220,8 +245,10 @@ a build:
    Android SDK installed: `./gradlew assembleDebug`.
 
 Install with `adb install app/build/outputs/apk/debug/app-debug.apk`. Open the
-app from your app drawer, drag/pinch to position the view, adjust any options,
-and tap **Set as Wallpaper** — this jumps straight to the system's
-live-wallpaper preview/set screen, which works even on OEM launchers whose own
-wallpaper picker doesn't surface a "Live wallpapers" category. (The OS picker
-at **Settings > Wallpaper > Live wallpapers**, where available, works too.)
+app from your app drawer, drag/pinch to position the view and adjust any
+options. Then open the **View** tab and tap **Add widget**, or **Set as live
+wallpaper**, which jumps straight to the system's live-wallpaper preview/set
+screen and works even on OEM launchers whose own wallpaper picker doesn't
+surface a "Live wallpapers" category. (The widget is also in the launcher's
+widget list, and the OS picker at **Settings > Wallpaper > Live wallpapers**,
+where available, works too.)

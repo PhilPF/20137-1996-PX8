@@ -49,5 +49,30 @@ class ViewProjectionTest {
         }
     }
 
+    @Test
+    fun distanceScalesMapEdgeToEdgeAndStayInOrder() {
+        for (scale in DistanceScale.entries) {
+            assertEquals("$scale at 0", 0.0, scale.compress(0.0, 31.0), 1e-12)
+            assertEquals("$scale at max", 1.0, scale.compress(31.0, 31.0), 1e-12)
+            val radii = listOf(0.39, 0.72, 1.0, 1.52, 5.2, 9.5, 19.2, 30.1).map { scale.compress(it, 31.0) }
+            assertTrue("$scale increasing", radii.zipWithNext().all { (a, b) -> b > a })
+        }
+        // Inner planets get more room going linear -> sqrt -> log.
+        val earth = DistanceScale.entries.associateWith { it.compress(1.0, 31.0) }
+        assertTrue(earth[DistanceScale.LINEAR]!! < earth[DistanceScale.SQRT]!!)
+        assertTrue(earth[DistanceScale.SQRT]!! < earth[DistanceScale.LOG]!!)
+        assertEquals(DistanceScale.SQRT, DistanceScale.fromKey(null))
+        assertEquals(DistanceScale.LOG, DistanceScale.fromKey("log"))
+    }
+
+    @Test
+    fun scaleKeepsDirection() {
+        for (scale in DistanceScale.entries) {
+            val o = FloatArray(3)
+            ViewProjection(0f, 0f, 400f, 0.0, 0.0, maxAu = 31.0, scale = scale).project(Vec3(3.0, 4.0, 0.0), o)
+            assertEquals("$scale", 4.0 / 3.0, (-o[1] / o[0]).toDouble(), 1e-5)
+        }
+    }
+
     private fun abs(x: Float) = kotlin.math.abs(x)
 }

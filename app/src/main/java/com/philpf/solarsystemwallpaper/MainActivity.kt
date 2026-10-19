@@ -3,6 +3,7 @@ package com.philpf.solarsystemwallpaper
 import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.app.WallpaperManager
+import android.appwidget.AppWidgetManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
@@ -23,7 +24,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -39,6 +39,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 
@@ -48,8 +49,9 @@ import kotlin.math.min
  *
  * - top capsule: name, a dot showing the asteroid data status, and the simulated date
  *   (tap it for the data details);
- * - bottom dock: the options button and the primary "Set as Wallpaper" action;
- * - options sheet (above the dock), one tab at a time: Time, Style, View, Data.
+ * - bottom tab bar: Time, Style, View, Data. Tapping a tab opens its options in a sheet above
+ *   the bar; tapping it again closes the sheet. Adding the widget and setting the live
+ *   wallpaper live in the View tab.
  *
  * The chrome fades while you drag the scene so it doesn't hide what you're positioning.
  */
@@ -59,16 +61,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var root: FrameLayout
     private lateinit var previewView: SolarSystemPreviewView
     private lateinit var hudPanel: GlassPanel
-    private lateinit var dockPanel: GlassPanel
+    private lateinit var tabBarPanel: GlassPanel
     private lateinit var optionsSheet: GlassPanel
     private lateinit var tabBarContainer: FrameLayout
     private lateinit var optionsScroll: MaxHeightScrollView
     private lateinit var optionsContent: LinearLayout
     private lateinit var dateText: TextView
     private lateinit var statusDot: View
-    private lateinit var optionsButton: FrameLayout
-    private lateinit var optionsIcon: ImageView
-    private lateinit var setWallpaperButton: TextView
 
     private lateinit var tabBar: GlassSegmentedControl
     private val pages = ArrayList<LinearLayout>()
@@ -77,6 +76,13 @@ class MainActivity : AppCompatActivity() {
     private val toggles = ArrayList<Pair<GlassToggle, () -> Boolean>>()
     private val secondaryButtons = ArrayList<TextView>()
     private val accentTexts = ArrayList<TextView>()
+    private lateinit var sizeSlider: GlassSlider
+    private lateinit var sizeValue: TextView
+    private lateinit var distanceControl: GlassSegmentedControl
+    private lateinit var distanceNote: TextView
+    private lateinit var goHomeLabel: TextView
+    private lateinit var forgetViewRow: View
+    private lateinit var forgetViewDivider: View
     private lateinit var timeModeControl: GlassSegmentedControl
     private lateinit var speedControl: GlassSegmentedControl
     private lateinit var loopControl: GlassSegmentedControl
@@ -129,39 +135,28 @@ class MainActivity : AppCompatActivity() {
         root = findViewById(R.id.root)
         previewView = findViewById(R.id.previewView)
         hudPanel = findViewById(R.id.hudPanel)
-        dockPanel = findViewById(R.id.dockPanel)
+        tabBarPanel = findViewById(R.id.tabBarPanel)
         optionsSheet = findViewById(R.id.optionsSheet)
         tabBarContainer = findViewById(R.id.tabBarContainer)
         optionsScroll = findViewById(R.id.optionsScroll)
         optionsContent = findViewById(R.id.optionsContent)
         dateText = findViewById(R.id.dateText)
         statusDot = findViewById(R.id.statusDot)
-        optionsButton = findViewById(R.id.optionsButton)
-        optionsIcon = findViewById(R.id.optionsIcon)
-        setWallpaperButton = findViewById(R.id.setWallpaperButton)
 
-        listOf(hudPanel, dockPanel, optionsSheet).forEach { it.attachScene(previewView) }
+        listOf(hudPanel, tabBarPanel, optionsSheet).forEach { it.attachScene(previewView) }
 
         buildOptions()
         showTab(currentTab, animate = false)
+        tabBar.select(-1, animate = false)
 
-        optionsButton.background = Glass.circleButtonBackground(this)
-        optionsButton.isClickable = true
-        optionsButton.setOnClickListener { setSheetOpen(!sheetOpen) }
-        setWallpaperButton.setOnClickListener { setLiveWallpaper() }
         findViewById<View>(R.id.hudContent).setOnClickListener {
-            if (sheetOpen && currentTab == TAB_DATA) {
-                setSheetOpen(false)
-            } else {
-                showTab(TAB_DATA, animate = sheetOpen)
-                setSheetOpen(true)
-            }
+            if (sheetOpen && currentTab == TAB_DATA) setSheetOpen(false) else openTab(TAB_DATA)
         }
         previewView.onInteraction = { active -> fadeChrome(active) }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         applyWindowInsets()
-        dockPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> root.post { positionSheet() } }
+        tabBarPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> root.post { positionSheet() } }
         root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> root.post { positionSheet() } }
 
         refreshAll()
@@ -199,7 +194,7 @@ class MainActivity : AppCompatActivity() {
                 marginStart = dp(16f) + bars.left
                 marginEnd = dp(16f) + bars.right
             }
-            (dockPanel.layoutParams as ViewGroup.MarginLayoutParams).apply {
+            (tabBarPanel.layoutParams as ViewGroup.MarginLayoutParams).apply {
                 bottomMargin = dp(12f) + bars.bottom
                 marginStart = dp(12f) + bars.left
                 marginEnd = dp(12f) + bars.right
@@ -209,34 +204,32 @@ class MainActivity : AppCompatActivity() {
                 marginEnd = dp(12f) + bars.right
             }
             hudPanel.requestLayout()
-            dockPanel.requestLayout()
+            tabBarPanel.requestLayout()
             root.post { positionSheet() }
             insets
         }
     }
 
-    /** Keeps the options sheet just above the dock, capped so it never covers the top capsule. */
+    /** Keeps the options sheet just above the tab bar, capped so it never covers the top capsule. */
     private fun positionSheet() {
         if (root.height == 0) return
         val sheetLp = optionsSheet.layoutParams as FrameLayout.LayoutParams
-        val dockLp = dockPanel.layoutParams as ViewGroup.MarginLayoutParams
-        val bottom = dockPanel.height + dockLp.bottomMargin + dp(10f)
+        val barLp = tabBarPanel.layoutParams as ViewGroup.MarginLayoutParams
+        val bottom = tabBarPanel.height + barLp.bottomMargin + dp(10f)
         if (sheetLp.bottomMargin != bottom) {
             sheetLp.bottomMargin = bottom
             optionsSheet.layoutParams = sheetLp
         }
         val hudBottom = (hudPanel.layoutParams as ViewGroup.MarginLayoutParams).topMargin + hudPanel.height
         val available = min(root.height - bottom - hudBottom - dp(12f), (root.height * 0.62f).toInt())
-        val tabBarHeight = if (tabBarContainer.height > 0) tabBarContainer.height else dp(56f)
-        optionsScroll.maxHeightPx = max(dp(160f), available - tabBarHeight)
+        optionsScroll.maxHeightPx = max(dp(160f), available)
     }
 
     private fun setSheetOpen(open: Boolean) {
         if (open == sheetOpen) return
         sheetOpen = open
         backCallback.isEnabled = open
-        optionsIcon.setImageResource(if (open) R.drawable.ic_close else R.drawable.ic_tune)
-        optionsButton.contentDescription = getString(if (open) R.string.close_options else R.string.options)
+        tabBar.select(if (open) currentTab else -1, animate = true)
         optionsSheet.animate().cancel()
         if (open) {
             positionSheet()
@@ -251,9 +244,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Opens the sheet on [index], or switches to it if the sheet is already open. */
+    private fun openTab(index: Int) {
+        if (sheetOpen) {
+            showTab(index, animate = true)
+        } else {
+            showTab(index, animate = false)
+            setSheetOpen(true)
+        }
+    }
+
     private fun showTab(index: Int, animate: Boolean) {
         currentTab = index
-        if (tabBar.selectedIndex != index) tabBar.select(index, animate)
+        // While closed the bar shows no selection; setSheetOpen() fades the pill in.
+        if (sheetOpen && tabBar.selectedIndex != index) tabBar.select(index, animate)
         if (animate && sheetOpen) {
             TransitionManager.beginDelayedTransition(
                 root,
@@ -273,7 +277,7 @@ class MainActivity : AppCompatActivity() {
         val target = if (active) 0.15f else 1f
         val duration = if (active) 160L else 320L
         hudPanel.animate().alpha(target).setDuration(duration).start()
-        dockPanel.animate().alpha(target).setDuration(duration).start()
+        tabBarPanel.animate().alpha(target).setDuration(duration).start()
         if (sheetOpen) optionsSheet.animate().alpha(target).translationY(0f).setDuration(duration).start()
     }
 
@@ -282,7 +286,11 @@ class MainActivity : AppCompatActivity() {
     private fun buildOptions() {
         tabBar = GlassSegmentedControl(this).apply {
             options = listOf(R.string.tab_time, R.string.tab_style, R.string.tab_view, R.string.tab_data).map { getString(it) }
-            onSelect = { showTab(it, animate = true) }
+            allowNone = true
+            heightDp = 46f
+            textSizeSp = 14.5f
+            onSelect = { openTab(it) }
+            onReselect = { setSheetOpen(false) }
         }
         tabBarContainer.addView(tabBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
@@ -313,11 +321,10 @@ class MainActivity : AppCompatActivity() {
         startDateValue = valueText()
         valueRow(startGroup, getString(R.string.start_date), startDateValue) { pickStartDate() }
         divider(startGroup)
-        val nowLabel = rowTitle(getString(R.string.start_from_now)).also { accentTexts.add(it) }
-        row(startGroup, onClick = {
+        actionRow(startGroup, getString(R.string.start_from_now)) {
             prefs.setCustomStartDate(System.currentTimeMillis())
             refreshAll()
-        }).addView(nowLabel, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
 
         caption(customGroup, R.string.speed_caption)
         speedControl = segmented(customGroup, resources.getStringArray(R.array.speed_labels).toList()) { idx ->
@@ -356,11 +363,30 @@ class MainActivity : AppCompatActivity() {
             swatchRow.addView(cell, LinearLayout.LayoutParams(0, dp(44f), 1f))
         }
 
-        val rows = group(page, top = 14f)
-        toggleRow(rows, R.string.toggle_relative_sizes, R.string.toggle_relative_sizes_note, { prefs.relativeSizes }) {
+        caption(page, R.string.size_caption)
+        val sizes = group(page)
+        sizeValue = valueText()
+        valueRow(sizes, getString(R.string.body_size), sizeValue)
+        sizeSlider = GlassSlider(this).apply {
+            contentDescription = getString(R.string.body_size)
+            onChange = { v ->
+                prefs.setBodyScale(sliderToScale(v), redrawWidgets = false)
+                sizeValue.text = getString(R.string.body_size_value, prefs.bodyScale)
+                previewView.refreshNow()
+            }
+            onRelease = { v -> prefs.setBodyScale(sliderToScale(v), redrawWidgets = true) }
+        }
+        sizes.addView(sizeSlider, matchWrap().apply {
+            marginStart = dp(10f)
+            marginEnd = dp(8f)
+            bottomMargin = dp(8f)
+        })
+        divider(sizes)
+        toggleRow(sizes, R.string.toggle_relative_sizes, R.string.toggle_relative_sizes_note, { prefs.relativeSizes }) {
             prefs.setRelativeSizes(it)
         }
-        divider(rows)
+
+        val rows = group(page, top = 14f)
         toggleRow(rows, R.string.toggle_planet_labels, null, { prefs.showPlanetLabels }) { prefs.setShowPlanetLabels(it) }
         divider(rows)
         toggleRow(rows, R.string.toggle_asteroid_label, null, { prefs.showAsteroidLabel }) { prefs.setShowAsteroidLabel(it) }
@@ -369,12 +395,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildViewPage(page: LinearLayout) {
-        val rows = group(page, top = 10f)
+        caption(page, R.string.distance_caption, top = 10f)
+        val scales = listOf(DistanceScale.LINEAR, DistanceScale.SQRT, DistanceScale.LOG)
+        distanceControl = segmented(
+            page,
+            listOf(getString(R.string.scale_linear), getString(R.string.scale_sqrt), getString(R.string.scale_log)),
+        ) { idx ->
+            prefs.setDistanceScale(scales[idx])
+            refreshAll()
+        }
+        distanceNote = footnote(page, R.string.scale_sqrt_note)
+
+        caption(page, R.string.camera_caption)
+        val camera = group(page)
+        goHomeLabel = actionRow(camera, getString(R.string.go_to_saved_view)) { previewView.goToHomeView() }
+        divider(camera)
+        actionRow(camera, getString(R.string.save_view)) {
+            previewView.saveCurrentAsHomeView()
+            Toast.makeText(this, getString(R.string.view_saved), Toast.LENGTH_SHORT).show()
+            refreshAll()
+        }
+        forgetViewDivider = divider(camera)
+        val forgetLabel = actionRow(camera, getString(R.string.forget_saved_view), accent = false) {
+            prefs.forgetSavedView()
+            refreshAll()
+        }
+        forgetViewRow = forgetLabel.parent as View
+        footnote(page, R.string.camera_note)
+
+        caption(page, R.string.home_caption)
+        val home = group(page)
+        actionRow(home, getString(R.string.add_widget)) { addWidget() }
+        divider(home)
+        actionRow(home, getString(R.string.set_wallpaper)) { setLiveWallpaper() }
+
+        caption(page, R.string.motion_caption)
+        val rows = group(page)
         toggleRow(rows, R.string.toggle_drift, R.string.toggle_drift_note, { prefs.azimuthDrift }) { prefs.setAzimuthDrift(it) }
         divider(rows)
         toggleRow(rows, R.string.toggle_parallax, R.string.toggle_parallax_note, { prefs.parallax }) { prefs.setParallax(it) }
-        page.addView(secondaryButton(getString(R.string.reset_camera_button)) { previewView.resetCamera() }, matchWrap(top = 14f))
-        footnote(page, R.string.view_note)
+    }
+
+    private fun sliderToScale(v: Float): Float {
+        val min = WallpaperPrefs.MIN_BODY_SCALE
+        val max = WallpaperPrefs.MAX_BODY_SCALE
+        val scale = (min * Math.pow((max / min).toDouble(), v.toDouble())).toFloat()
+        return if (abs(scale - 1f) < 0.04f) 1f else scale // Easy to land exactly on 1x.
+    }
+
+    private fun scaleToSlider(scale: Float): Float {
+        val min = WallpaperPrefs.MIN_BODY_SCALE
+        val max = WallpaperPrefs.MAX_BODY_SCALE
+        return (ln((scale / min).toDouble()) / ln((max / min).toDouble())).toFloat()
     }
 
     private fun buildDataPage(page: LinearLayout) {
@@ -450,14 +522,24 @@ class MainActivity : AppCompatActivity() {
         r.addView(value, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(16f) })
     }
 
-    private fun divider(group: LinearLayout) {
+    private fun divider(group: LinearLayout): View {
+        val line = View(this).apply { setBackgroundColor(Glass.HAIRLINE) }
         group.addView(
-            View(this).apply { setBackgroundColor(Glass.HAIRLINE) },
+            line,
             LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, max(1, dp(0.6f))).apply {
                 marginStart = dp(10f)
                 marginEnd = dp(4f)
             },
         )
+        return line
+    }
+
+    /** Tappable row whose title is the action, tinted with the accent unless [accent] is false. */
+    private fun actionRow(group: LinearLayout, title: String, accent: Boolean = true, onClick: () -> Unit): TextView {
+        val label = rowTitle(title)
+        if (accent) accentTexts.add(label) else label.setTextColor(Glass.TEXT_SECONDARY)
+        row(group, onClick).addView(label, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        return label
     }
 
     private fun caption(parent: LinearLayout, textRes: Int, top: Float = 16f) {
@@ -544,7 +626,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun refreshAll() {
         val accent = currentAccent()
-        Glass.styleButton(setWallpaperButton, primary = true, accent = accent)
         secondaryButtons.forEach { Glass.styleButton(it, primary = false, accent = accent) }
         accentTexts.forEach { it.setTextColor(accent) }
 
@@ -582,6 +663,26 @@ class MainActivity : AppCompatActivity() {
         }
         realTimeGroup.visibility = if (realTime) View.VISIBLE else View.GONE
         startDateValue.text = startFormat.format(Date(prefs.customStartMillis))
+
+        sizeSlider.accent = accent
+        sizeSlider.updateValue(scaleToSlider(prefs.bodyScale))
+        sizeValue.text = getString(R.string.body_size_value, prefs.bodyScale)
+
+        val scale = prefs.distanceScale
+        val scaleIdx = listOf(DistanceScale.LINEAR, DistanceScale.SQRT, DistanceScale.LOG).indexOf(scale)
+        if (distanceControl.selectedIndex != scaleIdx) distanceControl.select(scaleIdx, animate = false)
+        distanceNote.setText(
+            when (scale) {
+                DistanceScale.LINEAR -> R.string.scale_linear_note
+                DistanceScale.SQRT -> R.string.scale_sqrt_note
+                DistanceScale.LOG -> R.string.scale_log_note
+            },
+        )
+
+        val hasSavedView = prefs.savedView != null
+        goHomeLabel.setText(if (hasSavedView) R.string.go_to_saved_view else R.string.go_to_default_view)
+        forgetViewRow.visibility = if (hasSavedView) View.VISIBLE else View.GONE
+        forgetViewDivider.visibility = forgetViewRow.visibility
 
         refreshStatus()
         refreshDate()
@@ -681,6 +782,14 @@ class MainActivity : AppCompatActivity() {
             datePicker.minDate = minCal.timeInMillis
             datePicker.maxDate = maxCal.timeInMillis
         }.show()
+    }
+
+    /** Asks the launcher to place the widget (Android 8+ launchers that support it). */
+    private fun addWidget() {
+        val manager = AppWidgetManager.getInstance(this)
+        val provider = ComponentName(this, SolarSystemWidgetProvider::class.java)
+        val requested = manager.isRequestPinAppWidgetSupported && manager.requestPinAppWidget(provider, null, null)
+        if (!requested) Toast.makeText(this, getString(R.string.add_widget_fallback), Toast.LENGTH_LONG).show()
     }
 
     private fun setLiveWallpaper() {

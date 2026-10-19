@@ -66,7 +66,7 @@
         </LinearLayout>
     </com.philpf.solarsystemwallpaper.GlassPanel>
 
-    <!-- Options sheet, shown above the dock: tab bar + the selected tab's settings -->
+    <!-- Options sheet for the selected tab, shown above the tab bar -->
     <com.philpf.solarsystemwallpaper.GlassPanel
         android:id="@+id/optionsSheet"
         android:layout_width="match_parent"
@@ -77,84 +77,43 @@
         android:visibility="gone"
         app:glassCornerRadius="28dp">
 
-        <LinearLayout
+        <com.philpf.solarsystemwallpaper.MaxHeightScrollView
+            android:id="@+id/optionsScroll"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:fadingEdgeLength="20dp"
+            android:overScrollMode="never"
+            android:requiresFadingEdge="vertical"
+            android:scrollbars="none">
 
-            <FrameLayout
-                android:id="@+id/tabBarContainer"
+            <LinearLayout
+                android:id="@+id/optionsContent"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="vertical"
                 android:paddingStart="14dp"
-                android:paddingTop="14dp"
+                android:paddingTop="8dp"
                 android:paddingEnd="14dp"
-                android:paddingBottom="6dp" />
-
-            <com.philpf.solarsystemwallpaper.MaxHeightScrollView
-                android:id="@+id/optionsScroll"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fadingEdgeLength="20dp"
-                android:overScrollMode="never"
-                android:requiresFadingEdge="vertical"
-                android:scrollbars="none">
-
-                <LinearLayout
-                    android:id="@+id/optionsContent"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingStart="14dp"
-                    android:paddingTop="4dp"
-                    android:paddingEnd="14dp"
-                    android:paddingBottom="16dp" />
-            </com.philpf.solarsystemwallpaper.MaxHeightScrollView>
-        </LinearLayout>
+                android:paddingBottom="16dp" />
+        </com.philpf.solarsystemwallpaper.MaxHeightScrollView>
     </com.philpf.solarsystemwallpaper.GlassPanel>
 
-    <!-- Bottom dock: options + the primary action -->
+    <!-- Bottom tab bar: Time / Style / View / Data (segments are added in code) -->
     <com.philpf.solarsystemwallpaper.GlassPanel
-        android:id="@+id/dockPanel"
+        android:id="@+id/tabBarPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_marginStart="12dp"
         android:layout_marginEnd="12dp"
         android:layout_marginBottom="12dp"
-        app:glassCornerRadius="32dp">
+        app:glassCornerRadius="30dp">
 
-        <LinearLayout
+        <FrameLayout
+            android:id="@+id/tabBarContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="8dp">
-
-            <FrameLayout
-                android:id="@+id/optionsButton"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:contentDescription="@string/options">
-
-                <ImageView
-                    android:id="@+id/optionsIcon"
-                    android:layout_width="22dp"
-                    android:layout_height="22dp"
-                    android:layout_gravity="center"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_tune" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/setWallpaperButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:text="@string/set_wallpaper_button"
-                android:textSize="16sp" />
-        </LinearLayout>
+            android:padding="6dp" />
     </com.philpf.solarsystemwallpaper.GlassPanel>
 
 </FrameLayout>

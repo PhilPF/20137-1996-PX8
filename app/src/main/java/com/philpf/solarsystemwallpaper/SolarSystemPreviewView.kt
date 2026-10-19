@@ -1,17 +1,20 @@
 package com.philpf.solarsystemwallpaper
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.animation.DecelerateInterpolator
 
 /**
  * Interactive live preview backing the app's main screen: single-finger drag rotates azimuth
  * and tilts the camera, pinch zooms — the same gesture mapping as the design handoff's
- * `setupCameraControls()` (drag sensitivity 0.35/0.25, tilt clamped 0-85deg, zoom clamped
- * 0.3-6x). The camera auto-persists whenever a gesture ends.
+ * `setupCameraControls()` (drag sensitivity 0.35/0.25, tilt clamped 0-85deg). Zoom goes to 12x
+ * (the reference stopped at 6x) so the inner planets can be seen with linear distances. The
+ * camera auto-persists whenever a gesture ends.
  *
  * Also the [SceneSource] for the glass panels laid over it: each frame it invalidates the
  * registered backdrops, which re-render the same frame (same camera, same simulated instant)
@@ -40,6 +43,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
     /** Called with true when a drag/pinch starts and false when it ends. */
     var onInteraction: ((Boolean) -> Unit)? = null
 
+    private var cameraAnimator: ValueAnimator? = null
     private var lastX = 0f
     private var lastY = 0f
     private var dragging = false
@@ -48,7 +52,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
-                zoom = (zoom * detector.scaleFactor).coerceIn(0.3, 6.0)
+                zoom = (zoom * detector.scaleFactor).coerceIn(MIN_ZOOM, MAX_ZOOM)
                 invalidateFrame()
                 return true
             }
@@ -78,13 +82,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
     }
 
     override fun renderScene(canvas: Canvas) {
-        val style = SolarSystemRenderer.Style(
-            monochrome = prefs.monochrome,
-            showPlanetLabels = prefs.showPlanetLabels,
-            showAsteroidLabel = prefs.showAsteroidLabel,
-            asteroidColorHex = prefs.asteroidColor,
-            relativeSizes = prefs.relativeSizes,
-        )
+        val style = prefs.renderStyle()
         val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
         renderer.render(canvas, width.toFloat(), height.toFloat(), frameSimMillis, camera, style, prefs::asteroidOrbitAt)
     }
@@ -105,10 +103,32 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         prefs.setCamera(azimuthDeg, tiltDeg, zoom)
     }
 
-    fun resetCamera() {
-        prefs.resetCamera()
-        loadSavedCamera()
+    /** Glides back to the saved view (or the original default), then persists it. */
+    fun goToHomeView() {
+        val target = prefs.homeView
+        val fromAz = azimuthDeg
+        val fromTilt = tiltDeg
+        val fromZoom = zoom
+        // Turn the short way round.
+        val dAz = ((target.azimuthDeg - fromAz) % 360.0 + 540.0) % 360.0 - 180.0
+        cameraAnimator?.cancel()
+        cameraAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = 650
+            interpolator = DecelerateInterpolator(1.8f)
+            addUpdateListener {
+                val t = (it.animatedValue as Float).toDouble()
+                azimuthDeg = fromAz + dAz * t
+                tiltDeg = fromTilt + (target.tiltDeg - fromTilt) * t
+                // Zoom eases in log space so in and out feel the same.
+                zoom = fromZoom * Math.pow(target.zoom / fromZoom, t)
+                invalidateFrame()
+                if (t >= 1.0) saveCamera()
+            }
+            start()
+        }
     }
+
+    fun saveCurrentAsHomeView() = prefs.saveView(azimuthDeg, tiltDeg, zoom)
 
     /** Re-reads settings/time immediately instead of waiting for the next frame tick. */
     fun refreshNow() {
@@ -130,6 +150,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         scaleDetector.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                cameraAnimator?.cancel()
                 lastX = event.x
                 lastY = event.y
                 dragging = true
@@ -170,5 +191,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
 
     companion object {
         private const val FRAME_INTERVAL_MS = 33L
+        private const val MIN_ZOOM = 0.3
+        private const val MAX_ZOOM = 12.0
     }
 }

@@ -4,10 +4,7 @@
     <string name="wallpaper_description">Solar system + near-Earth asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
     <string name="widget_description">Live snapshot of the solar system + asteroid tracker, resizable to any size.</string>
 
-    <string name="set_wallpaper_button">Set as Wallpaper</string>
     <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
-    <string name="options">Options</string>
-    <string name="close_options">Close options</string>
 
     <string name="tab_time">Time</string>
     <string name="tab_style">Style</string>
@@ -24,18 +21,41 @@
     <string name="custom_note">Playback restarts from the start date when the loop ends.</string>
 
     <string name="accent_caption">Accent color</string>
+    <string name="size_caption">Size</string>
+    <string name="body_size">Body size</string>
+    <string name="body_size_value">%1$.1f×</string>
     <string name="toggle_relative_sizes">Proportional sizes</string>
     <string name="toggle_relative_sizes_note">Sun and planets sized by their real radii</string>
     <string name="toggle_planet_labels">Planet labels</string>
     <string name="toggle_asteroid_label">Asteroid label</string>
     <string name="toggle_monochrome">Monochrome</string>
 
+    <string name="distance_caption">Distances from the Sun</string>
+    <string name="scale_linear">Linear</string>
+    <string name="scale_sqrt">Square root</string>
+    <string name="scale_log">Log</string>
+    <string name="scale_linear_note">True proportions. The inner planets huddle around the Sun; pinch to zoom in on them.</string>
+    <string name="scale_sqrt_note">Balanced: the inner and outer planets both fit comfortably.</string>
+    <string name="scale_log_note">Spreads out the inner planets the most.</string>
+
+    <string name="camera_caption">Camera</string>
+    <string name="go_to_saved_view">Go to saved view</string>
+    <string name="go_to_default_view">Go to default view</string>
+    <string name="save_view">Save this view</string>
+    <string name="forget_saved_view">Forget saved view</string>
+    <string name="view_saved">View saved</string>
+    <string name="camera_note">Save a view to come back to it after exploring. The wallpaper and widget show the view you leave the app on.</string>
+
+    <string name="home_caption">Use on home screen</string>
+    <string name="add_widget">Add widget</string>
+    <string name="set_wallpaper">Set as live wallpaper</string>
+    <string name="add_widget_fallback">Long-press an empty spot on your home screen, tap Widgets, and pick 20137-1996-PX8.</string>
+
+    <string name="motion_caption">Live wallpaper motion</string>
     <string name="toggle_drift">Slow camera drift</string>
     <string name="toggle_drift_note">One full turn every two hours</string>
     <string name="toggle_parallax">Swipe parallax</string>
     <string name="toggle_parallax_note">Turns slightly as you swipe home screens</string>
-    <string name="reset_camera_button">Reset camera</string>
-    <string name="view_note">The wallpaper and widget use the angle and zoom set here.</string>
 
     <string name="data_status">Status</string>
     <string name="data_source">Source</string>

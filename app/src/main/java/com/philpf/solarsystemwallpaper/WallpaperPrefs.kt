@@ -34,6 +34,34 @@ class WallpaperPrefs(context: Context) {
     fun setShowPlanetLabels(value: Boolean) = putBoolean(KEY_SHOW_PLANET_LABELS, value, redrawWidgets = true)
     fun setShowAsteroidLabel(value: Boolean) = putBoolean(KEY_SHOW_ASTEROID_LABEL, value, redrawWidgets = true)
     fun setRelativeSizes(value: Boolean) = putBoolean(KEY_RELATIVE_SIZES, value, redrawWidgets = true)
+
+    /** Size multiplier for the Sun, planets and asteroid marker ([MIN_BODY_SCALE]..[MAX_BODY_SCALE]). */
+    val bodyScale: Float
+        get() = prefs.getFloat(KEY_BODY_SCALE, 1f).coerceIn(MIN_BODY_SCALE, MAX_BODY_SCALE)
+
+    /** While dragging the slider pass [redrawWidgets] = false; redraw once on release. */
+    fun setBodyScale(value: Float, redrawWidgets: Boolean) {
+        prefs.edit().putFloat(KEY_BODY_SCALE, value.coerceIn(MIN_BODY_SCALE, MAX_BODY_SCALE)).apply()
+        if (redrawWidgets) notifyWidgets()
+    }
+
+    val distanceScale: DistanceScale get() = DistanceScale.fromKey(prefs.getString(KEY_DISTANCE_SCALE, null))
+
+    fun setDistanceScale(value: DistanceScale) {
+        prefs.edit().putString(KEY_DISTANCE_SCALE, value.key).apply()
+        notifyWidgets()
+    }
+
+    /** Everything about how the scene looks, as the renderer wants it. */
+    fun renderStyle() = SolarSystemRenderer.Style(
+        monochrome = monochrome,
+        showPlanetLabels = showPlanetLabels,
+        showAsteroidLabel = showAsteroidLabel,
+        asteroidColorHex = asteroidColor,
+        relativeSizes = relativeSizes,
+        bodyScale = bodyScale,
+        distanceScale = distanceScale,
+    )
     fun setAzimuthDrift(value: Boolean) = putBoolean(KEY_AZIMUTH_DRIFT, value, redrawWidgets = false)
     fun setParallax(value: Boolean) = putBoolean(KEY_PARALLAX, value, redrawWidgets = false)
 
@@ -63,7 +91,32 @@ class WallpaperPrefs(context: Context) {
         notifyWidgets()
     }
 
-    fun resetCamera() = setCamera(0.0, DEFAULT_TILT_DEG, 1.0)
+    /** A view the user saved to come back to; null if none (then the original default is used). */
+    val savedView: SolarSystemRenderer.Camera?
+        get() {
+            if (!prefs.contains(KEY_SAVED_VIEW_AZIMUTH)) return null
+            return SolarSystemRenderer.Camera(
+                prefs.getFloat(KEY_SAVED_VIEW_AZIMUTH, 0f).toDouble(),
+                prefs.getFloat(KEY_SAVED_VIEW_TILT, DEFAULT_TILT_DEG.toFloat()).toDouble(),
+                prefs.getFloat(KEY_SAVED_VIEW_ZOOM, 1f).toDouble(),
+            )
+        }
+
+    /** Where "Go to saved view" goes: the saved view, or the original default. */
+    val homeView: SolarSystemRenderer.Camera
+        get() = savedView ?: SolarSystemRenderer.Camera(0.0, DEFAULT_TILT_DEG, 1.0)
+
+    fun saveView(azimuthDeg: Double, tiltDeg: Double, zoom: Double) {
+        prefs.edit()
+            .putFloat(KEY_SAVED_VIEW_AZIMUTH, azimuthDeg.toFloat())
+            .putFloat(KEY_SAVED_VIEW_TILT, tiltDeg.toFloat())
+            .putFloat(KEY_SAVED_VIEW_ZOOM, zoom.toFloat())
+            .apply()
+    }
+
+    fun forgetSavedView() {
+        prefs.edit().remove(KEY_SAVED_VIEW_AZIMUTH).remove(KEY_SAVED_VIEW_TILT).remove(KEY_SAVED_VIEW_ZOOM).apply()
+    }
 
     // ---- Time ---------------------------------------------------------------------------------
 
@@ -176,6 +229,11 @@ class WallpaperPrefs(context: Context) {
         const val KEY_SHOW_PLANET_LABELS = "pref_show_planet_labels"
         const val KEY_SHOW_ASTEROID_LABEL = "pref_show_asteroid_label"
         const val KEY_RELATIVE_SIZES = "pref_relative_sizes"
+        const val KEY_BODY_SCALE = "pref_body_scale"
+        const val KEY_DISTANCE_SCALE = "pref_distance_scale"
+        const val KEY_SAVED_VIEW_AZIMUTH = "pref_saved_view_azimuth"
+        const val KEY_SAVED_VIEW_TILT = "pref_saved_view_tilt"
+        const val KEY_SAVED_VIEW_ZOOM = "pref_saved_view_zoom"
         const val KEY_ASTEROID_COLOR = "pref_asteroid_color"
         const val KEY_TIME_MODE = "pref_time_mode"
         const val KEY_SPEED_DAYS_PER_SEC = "pref_speed_days_per_sec"
@@ -195,6 +253,9 @@ class WallpaperPrefs(context: Context) {
         const val STATUS_FALLBACK = "fallback"
 
         const val DEFAULT_ACCENT_HEX = "#ffd166"
+
+        const val MIN_BODY_SCALE = 0.3f
+        const val MAX_BODY_SCALE = 2.0f
 
         /** Default custom-mode rate, matching the design handoff's recommended ambient speed. */
         const val DEFAULT_SPEED_DAYS_PER_SEC = 30.0

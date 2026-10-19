@@ -59,10 +59,10 @@ class SolarSystemWidgetProvider : AppWidgetProvider() {
             val widthPx = (widthDp * density).toInt().coerceAtLeast(1)
             val heightPx = (heightDp * density).toInt().coerceAtLeast(1)
 
-            // RGB_565: the scene always fully covers the bitmap with an opaque background, so no
-            // alpha channel is needed — halves memory and the RemoteViews IPC payload, which
-            // matters since a widget can be resized arbitrarily large.
-            val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.RGB_565)
+            // Full 8-bit color: with 16-bit RGB_565 the dark background gradient breaks into
+            // visible colored rings. A widget is at most screen-sized, well within the
+            // RemoteViews bitmap limit (1.5x a full-screen ARGB_8888 bitmap).
+            val bitmap = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
 
             val prefs = WallpaperPrefs(context)
@@ -72,13 +72,7 @@ class SolarSystemWidgetProvider : AppWidgetProvider() {
                 tiltDeg = prefs.cameraTiltDeg,
                 zoom = prefs.cameraZoom,
             )
-            val style = SolarSystemRenderer.Style(
-                monochrome = prefs.monochrome,
-                showPlanetLabels = prefs.showPlanetLabels,
-                showAsteroidLabel = prefs.showAsteroidLabel,
-                asteroidColorHex = prefs.asteroidColor,
-                relativeSizes = prefs.relativeSizes,
-            )
+            val style = prefs.renderStyle()
             renderer.render(
                 canvas, widthPx.toFloat(), heightPx.toFloat(),
                 prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt,

@@ -20,6 +20,7 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
+import android.os.Bundle
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
@@ -29,6 +30,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ScrollView
+import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import kotlin.math.abs
@@ -60,9 +62,9 @@ object Glass {
 
     fun dp(context: Context, value: Float): Float = value * context.resources.displayMetrics.density
 
-    private fun ripple(context: Context, content: Drawable, oval: Boolean = false, radiusDp: Float = 100f): Drawable {
+    private fun ripple(context: Context, content: Drawable): Drawable {
         val mask = GradientDrawable().apply {
-            if (oval) shape = GradientDrawable.OVAL else cornerRadius = dp(context, radiusDp)
+            cornerRadius = dp(context, 100f)
             setColor(Color.WHITE)
         }
         return RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), content, mask)
@@ -77,9 +79,6 @@ object Glass {
     fun primaryButtonBackground(context: Context, accent: Int): Drawable = ripple(context, flat(context, accent))
 
     fun secondaryButtonBackground(context: Context): Drawable = ripple(context, flat(context, CONTROL_FILL))
-
-    fun circleButtonBackground(context: Context): Drawable =
-        ripple(context, GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(CONTROL_FILL) }, oval = true)
 
     /** Rounded block that groups rows inside a panel (like iOS inset grouped lists). */
     fun groupBackground(context: Context): Drawable = flat(context, GROUP_FILL, radiusDp = 18f)
@@ -348,7 +347,11 @@ class GlassToggle(context: Context) : View(context) {
     }
 }
 
-/** Flat capsule segmented control: translucent track, a lighter glass pill slides to the selection. */
+/**
+ * Flat capsule segmented control: translucent track, a lighter glass pill slides to the selection.
+ * With [allowNone] it can also have nothing selected (index -1), which the bottom tab bar uses
+ * while the options sheet is closed; tapping the selected segment then calls [onReselect].
+ */
 class GlassSegmentedControl(context: Context) : View(context) {
 
     var options: List<String> = emptyList()
@@ -357,28 +360,42 @@ class GlassSegmentedControl(context: Context) : View(context) {
             invalidate()
         }
 
+    var heightDp = 36f
+        set(value) {
+            field = value
+            requestLayout()
+        }
+
+    var textSizeSp = 13.5f
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    var allowNone = false
+
     var selectedIndex = 0
         private set
 
     var onSelect: ((Int) -> Unit)? = null
+    var onReselect: ((Int) -> Unit)? = null
 
     private var pillPosition = 0f
+    private var pillAlpha = 1f
     private var animator: ValueAnimator? = null
     private val argb = ArgbEvaluator()
     private val inset = Glass.dp(context, 3f)
     private val rect = RectF()
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Glass.CONTROL_FILL }
-    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x2EFFFFFF }
+    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val pillRim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = Glass.dp(context, 0.8f)
-        color = 0x24FFFFFF
     }
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Glass.medium
         textAlign = Paint.Align.CENTER
     }
-    private val baseTextSize = 13.5f * context.resources.displayMetrics.scaledDensity
 
     init {
         isClickable = true
@@ -387,18 +404,29 @@ class GlassSegmentedControl(context: Context) : View(context) {
 
     fun select(index: Int, animate: Boolean) {
         if (options.isEmpty()) return
-        selectedIndex = index.coerceIn(0, options.size - 1)
+        val target = if (allowNone && index < 0) -1 else index.coerceIn(0, options.size - 1)
+        val from = selectedIndex
+        selectedIndex = target
         animator?.cancel()
+        // Appearing from "none": start at the target and fade in instead of sliding across.
+        if (from < 0 && target >= 0) pillPosition = target.toFloat()
+        val toPos = if (target >= 0) target.toFloat() else pillPosition
+        val toAlpha = if (target >= 0) 1f else 0f
         if (!animate) {
-            pillPosition = selectedIndex.toFloat()
+            pillPosition = toPos
+            pillAlpha = toAlpha
             invalidate()
             return
         }
-        animator = ValueAnimator.ofFloat(pillPosition, selectedIndex.toFloat()).apply {
+        val startPos = pillPosition
+        val startAlpha = pillAlpha
+        animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 240
             interpolator = DecelerateInterpolator(1.6f)
             addUpdateListener {
-                pillPosition = it.animatedValue as Float
+                val t = it.animatedValue as Float
+                pillPosition = startPos + (toPos - startPos) * t
+                pillAlpha = startAlpha + (toAlpha - startAlpha) * t
                 invalidate()
             }
             start()
@@ -407,7 +435,7 @@ class GlassSegmentedControl(context: Context) : View(context) {
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
-        setMeasuredDimension(w, Glass.dp(context, 36f).toInt())
+        setMeasuredDimension(w, Glass.dp(context, heightDp).toInt())
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -419,18 +447,23 @@ class GlassSegmentedControl(context: Context) : View(context) {
         canvas.drawRoundRect(rect, h / 2, h / 2, trackPaint)
 
         val segW = (w - 2 * inset) / n
-        val pillLeft = inset + pillPosition * segW
-        rect.set(pillLeft, inset, pillLeft + segW, h - inset)
-        val pr = (h - 2 * inset) / 2
-        canvas.drawRoundRect(rect, pr, pr, pillPaint)
-        canvas.drawRoundRect(rect, pr, pr, pillRim)
+        if (pillAlpha > 0.01f) {
+            val pillLeft = inset + pillPosition * segW
+            rect.set(pillLeft, inset, pillLeft + segW, h - inset)
+            val pr = (h - 2 * inset) / 2
+            pillPaint.color = Color.argb((0x2E * pillAlpha).toInt(), 255, 255, 255)
+            pillRim.color = Color.argb((0x24 * pillAlpha).toInt(), 255, 255, 255)
+            canvas.drawRoundRect(rect, pr, pr, pillPaint)
+            canvas.drawRoundRect(rect, pr, pr, pillRim)
+        }
 
+        val baseTextSize = textSizeSp * resources.displayMetrics.scaledDensity
         for ((i, label) in options.withIndex()) {
             textPaint.textSize = baseTextSize
             val maxW = segW - Glass.dp(context, 8f)
             val measured = textPaint.measureText(label)
             if (measured > maxW) textPaint.textSize = baseTextSize * maxW / measured
-            val closeness = (1f - abs(i - pillPosition)).coerceIn(0f, 1f)
+            val closeness = (1f - abs(i - pillPosition)).coerceIn(0f, 1f) * pillAlpha
             textPaint.color = argb.evaluate(closeness, Glass.TEXT_SECONDARY, Glass.TEXT_PRIMARY) as Int
             val cx = inset + segW * (i + 0.5f)
             val cy = h / 2 - (textPaint.descent() + textPaint.ascent()) / 2
@@ -449,6 +482,8 @@ class GlassSegmentedControl(context: Context) : View(context) {
                 if (index != selectedIndex) {
                     select(index, animate = true)
                     onSelect?.invoke(index)
+                } else {
+                    onReselect?.invoke(index)
                 }
                 return true
             }
@@ -457,6 +492,110 @@ class GlassSegmentedControl(context: Context) : View(context) {
     }
 
     override fun performClick(): Boolean = super.performClick()
+}
+
+/**
+ * Flat slider: thin translucent track filled with the accent up to a white capsule thumb.
+ * [onChange] fires while dragging (for live preview), [onRelease] once the finger lifts.
+ */
+class GlassSlider(context: Context) : View(context) {
+
+    var accent: Int = Color.parseColor(WallpaperPrefs.DEFAULT_ACCENT_HEX)
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /** 0..1 */
+    var value = 0.5f
+        private set
+
+    var onChange: ((Float) -> Unit)? = null
+    var onRelease: ((Float) -> Unit)? = null
+
+    private val rect = RectF()
+    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x29FFFFFF }
+    private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val thumbW = Glass.dp(context, 34f)
+    private val thumbH = Glass.dp(context, 22f)
+    private val trackH = Glass.dp(context, 6f)
+
+    init {
+        isClickable = true
+        isFocusable = true
+    }
+
+    fun updateValue(v: Float) {
+        value = v.coerceIn(0f, 1f)
+        invalidate()
+    }
+
+    override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), Glass.dp(context, 36f).toInt())
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val w = width.toFloat()
+        val cy = height / 2f
+        val travel = w - thumbW
+        val thumbLeft = travel * value
+        rect.set(0f, cy - trackH / 2, w, cy + trackH / 2)
+        canvas.drawRoundRect(rect, trackH / 2, trackH / 2, trackPaint)
+        fillPaint.color = accent
+        rect.set(0f, cy - trackH / 2, thumbLeft + thumbW / 2, cy + trackH / 2)
+        canvas.drawRoundRect(rect, trackH / 2, trackH / 2, fillPaint)
+        rect.set(thumbLeft, cy - thumbH / 2, thumbLeft + thumbW, cy + thumbH / 2)
+        canvas.drawRoundRect(rect, thumbH / 2, thumbH / 2, thumbPaint)
+    }
+
+    private fun valueAt(x: Float): Float = ((x - thumbW / 2) / (width - thumbW).coerceAtLeast(1f)).coerceIn(0f, 1f)
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                // Keep the surrounding ScrollView from stealing horizontal drags.
+                parent?.requestDisallowInterceptTouchEvent(true)
+                updateValue(valueAt(event.x))
+                onChange?.invoke(value)
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                updateValue(valueAt(event.x))
+                onChange?.invoke(value)
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                parent?.requestDisallowInterceptTouchEvent(false)
+                if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
+                onRelease?.invoke(value)
+                return true
+            }
+        }
+        return super.onTouchEvent(event)
+    }
+
+    override fun performClick(): Boolean = super.performClick()
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.className = SeekBar::class.java.name
+        info.rangeInfo = AccessibilityNodeInfo.RangeInfo.obtain(AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT, 0f, 1f, value)
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+    }
+
+    override fun performAccessibilityAction(action: Int, arguments: Bundle?): Boolean {
+        val delta = when (action) {
+            AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> 0.05f
+            AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> -0.05f
+            else -> return super.performAccessibilityAction(action, arguments)
+        }
+        updateValue(value + delta)
+        onChange?.invoke(value)
+        onRelease?.invoke(value)
+        return true
+    }
 }
 
 /** ScrollView with a height cap (ScrollView has no working `maxHeight`). */

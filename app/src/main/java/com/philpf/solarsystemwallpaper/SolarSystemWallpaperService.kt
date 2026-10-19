@@ -1,6 +1,7 @@
 package com.philpf.solarsystemwallpaper
 
 import android.content.SharedPreferences
+import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -36,6 +37,8 @@ class SolarSystemWallpaperService : WallpaperService() {
 
         override fun onCreate(surfaceHolder: SurfaceHolder) {
             super.onCreate(surfaceHolder)
+            // 8 bits per channel, so the background gradient doesn't band.
+            surfaceHolder.setFormat(PixelFormat.RGBA_8888)
             prefs.registerListener(this)
         }
 
@@ -109,13 +112,7 @@ class SolarSystemWallpaperService : WallpaperService() {
                 tiltDeg = prefs.cameraTiltDeg,
                 zoom = prefs.cameraZoom,
             )
-            val style = SolarSystemRenderer.Style(
-                monochrome = prefs.monochrome,
-                showPlanetLabels = prefs.showPlanetLabels,
-                showAsteroidLabel = prefs.showAsteroidLabel,
-                asteroidColorHex = prefs.asteroidColor,
-                relativeSizes = prefs.relativeSizes,
-            )
+            val style = prefs.renderStyle()
             renderer.render(
                 canvas, canvas.width.toFloat(), canvas.height.toFloat(),
                 prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt,

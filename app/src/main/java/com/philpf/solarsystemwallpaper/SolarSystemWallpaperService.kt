@@ -117,7 +117,7 @@ class SolarSystemWallpaperService : WallpaperService() {
             )
             renderer.render(
                 canvas, canvas.width.toFloat(), canvas.height.toFloat(),
-                prefs.simulatedMillis(), camera, style, prefs.asteroidOrbit,
+                prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt,
             )
         }
     }

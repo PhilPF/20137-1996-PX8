@@ -8,20 +8,23 @@ import android.view.ScaleGestureDetector
 import android.view.View
 
 /**
- * Interactive live preview backing the app's single main screen: single-finger drag rotates
- * azimuth and tilts the camera, pinch zooms — the same gesture mapping as the design handoff's
+ * Interactive live preview backing the app's main screen: single-finger drag rotates azimuth
+ * and tilts the camera, pinch zooms — the same gesture mapping as the design handoff's
  * `setupCameraControls()` (drag sensitivity 0.35/0.25, tilt clamped 0-85deg, zoom clamped
- * 0.3-6x). The camera auto-persists whenever a gesture ends, since positioning happens on the
- * same screen used to set the wallpaper (no separate "save" step). Renders continuously via
- * [SolarSystemRenderer] so planet motion stays visible while the user positions the view.
+ * 0.3-6x). The camera auto-persists whenever a gesture ends.
+ *
+ * Also the [SceneSource] for the glass panels laid over it: each frame it invalidates the
+ * registered backdrops, which re-render the same frame (same camera, same simulated instant)
+ * blurred behind their panel.
  */
 class SolarSystemPreviewView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-) : View(context, attrs) {
+) : View(context, attrs), SceneSource {
 
     private val renderer = SolarSystemRenderer(resources.displayMetrics.density)
     private val prefs = WallpaperPrefs(context)
+    private val backdrops = ArrayList<View>()
 
     var azimuthDeg = 0.0
         private set
@@ -29,6 +32,13 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         private set
     var zoom = 1.0
         private set
+
+    /** Simulated instant of the frame being shown, shared with the backdrops. */
+    var frameSimMillis: Long = System.currentTimeMillis()
+        private set
+
+    /** Called with true when a drag/pinch starts and false when it ends. */
+    var onInteraction: ((Boolean) -> Unit)? = null
 
     private var lastX = 0f
     private var lastY = 0f
@@ -39,7 +49,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
             override fun onScale(detector: ScaleGestureDetector): Boolean {
                 zoom = (zoom * detector.scaleFactor).coerceIn(0.3, 6.0)
-                invalidate()
+                invalidateFrame()
                 return true
             }
 
@@ -51,7 +61,8 @@ class SolarSystemPreviewView @JvmOverloads constructor(
 
     private val frameRunnable = object : Runnable {
         override fun run() {
-            invalidate()
+            frameSimMillis = prefs.simulatedMillis()
+            invalidateFrame()
             postDelayed(this, FRAME_INTERVAL_MS)
         }
     }
@@ -60,11 +71,33 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         loadSavedCamera()
     }
 
+    override val sceneView: View get() = this
+
+    override fun registerBackdrop(view: View) {
+        if (view !in backdrops) backdrops.add(view)
+    }
+
+    override fun renderScene(canvas: Canvas) {
+        val style = SolarSystemRenderer.Style(
+            monochrome = prefs.monochrome,
+            showPlanetLabels = prefs.showPlanetLabels,
+            showAsteroidLabel = prefs.showAsteroidLabel,
+            asteroidColorHex = prefs.asteroidColor,
+        )
+        val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
+        renderer.render(canvas, width.toFloat(), height.toFloat(), frameSimMillis, camera, style, prefs::asteroidOrbitAt)
+    }
+
+    private fun invalidateFrame() {
+        invalidate()
+        for (b in backdrops) b.invalidate()
+    }
+
     fun loadSavedCamera() {
         azimuthDeg = prefs.cameraAzimuthDeg
         tiltDeg = prefs.cameraTiltDeg
         zoom = prefs.cameraZoom
-        invalidate()
+        invalidateFrame()
     }
 
     fun saveCamera() {
@@ -74,6 +107,12 @@ class SolarSystemPreviewView @JvmOverloads constructor(
     fun resetCamera() {
         prefs.resetCamera()
         loadSavedCamera()
+    }
+
+    /** Re-reads settings/time immediately instead of waiting for the next frame tick. */
+    fun refreshNow() {
+        frameSimMillis = prefs.simulatedMillis()
+        invalidateFrame()
     }
 
     override fun onAttachedToWindow() {
@@ -93,6 +132,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
                 lastX = event.x
                 lastY = event.y
                 dragging = true
+                onInteraction?.invoke(true)
             }
             MotionEvent.ACTION_MOVE -> {
                 if (dragging && event.pointerCount == 1 && !scaleDetector.isInProgress) {
@@ -102,17 +142,21 @@ class SolarSystemPreviewView @JvmOverloads constructor(
                     lastY = event.y
                     azimuthDeg += dx * 0.35
                     tiltDeg = (tiltDeg - dy * 0.25).coerceIn(0.0, 85.0)
-                    invalidate()
+                    invalidateFrame()
                 }
             }
             MotionEvent.ACTION_POINTER_DOWN -> dragging = false
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP, MotionEvent.ACTION_CANCEL -> {
-                dragging = event.pointerCount <= 1
-                if (event.pointerCount == 1) {
-                    lastX = event.getX(0)
-                    lastY = event.getY(0)
-                }
+            MotionEvent.ACTION_POINTER_UP -> {
+                // The finger that stays down becomes the drag pointer again.
+                val remaining = if (event.actionIndex == 0) 1 else 0
+                lastX = event.getX(remaining)
+                lastY = event.getY(remaining)
+                dragging = true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                dragging = false
                 saveCamera()
+                onInteraction?.invoke(false)
             }
         }
         return true
@@ -120,14 +164,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val style = SolarSystemRenderer.Style(
-            monochrome = prefs.monochrome,
-            showPlanetLabels = prefs.showPlanetLabels,
-            showAsteroidLabel = prefs.showAsteroidLabel,
-            asteroidColorHex = prefs.asteroidColor,
-        )
-        val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
-        renderer.render(canvas, width.toFloat(), height.toFloat(), prefs.simulatedMillis(), camera, style, prefs.asteroidOrbit)
+        renderScene(canvas)
     }
 
     companion object {

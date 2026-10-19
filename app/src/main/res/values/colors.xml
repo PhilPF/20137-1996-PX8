@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="background">#171A24</color>
-    <color name="foreground">#E8E9EE</color>
-    <color name="orbit_line">#5F6470</color>
-    <color name="sun_core">#FFE9A8</color>
-    <color name="sun_glow">#FFF3C4</color>
     <color name="accent_default">#FFD166</color>
-    <color name="chrome_panel_bg">#2B2F3B</color>
-    <color name="chrome_bar_bg">#D9131620</color>
-    <color name="status_loading">#D8C070</color>
-    <color name="status_ok">#7FCB9E</color>
-    <color name="status_fallback">#D9A066</color>
+    <color name="glass_text">#F2FFFFFF</color>
+    <color name="glass_text_secondary">#99FFFFFF</color>
+    <color name="status_loading">#E3CB7C</color>
+    <color name="status_ok">#8FE0AE</color>
+    <color name="status_fallback">#F0AE6E</color>
 </resources>

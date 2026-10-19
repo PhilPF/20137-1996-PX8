@@ -8,7 +8,6 @@ import android.graphics.RadialGradient
 import android.graphics.Shader
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -42,14 +41,26 @@ class SolarSystemRenderer(private val density: Float) {
 
     private fun dp(value: Float): Float = value * density
 
-    fun render(canvas: Canvas, width: Float, height: Float, simMillis: Long, camera: Camera, style: Style, asteroid: AsteroidOrbit) {
+    /**
+     * Draws the scene at [simMillis]. [asteroidAt] returns the asteroid's osculating elements to
+     * propagate from for a given Julian Date (the nearest epoch of the stored JPL table).
+     */
+    fun render(
+        canvas: Canvas,
+        width: Float,
+        height: Float,
+        simMillis: Long,
+        camera: Camera,
+        style: Style,
+        asteroidAt: (Double) -> AsteroidOrbit,
+    ) {
         val w = width
         val h = height
         canvas.drawRect(0f, 0f, w, h, bgPaint)
         if (w <= 0f || h <= 0f) return
 
         val jd = jdFromUnixMillis(simMillis)
-        val t = (jd - 2451545.0) / 36525.0
+        val t = centuriesSinceJ2000(jd)
 
         val mono = style.monochrome
         val asteroidColorInt = if (mono) Color.WHITE else parseColorSafe(style.asteroidColorHex, Color.parseColor("#ffd166"))
@@ -98,7 +109,7 @@ class SolarSystemRenderer(private val density: Float) {
         sunCorePaint.color = if (mono) Color.WHITE else Color.parseColor("#ffe9a8")
         canvas.drawCircle(sunPos[0], sunPos[1], dp(5f), sunCorePaint)
 
-        val ae = asteroid
+        val ae = asteroidAt(jd)
         val asteroidPts = orbitPath(ae.a, ae.e, ae.i, ae.om, ae.w, 220)
         reusablePath.reset()
         asteroidPts.forEachIndexed { idx, pt ->
@@ -110,9 +121,7 @@ class SolarSystemRenderer(private val density: Float) {
         asteroidOrbitPaint.alpha = (0.55f * 255).toInt()
         canvas.drawPath(reusablePath, asteroidOrbitPaint)
 
-        val n = (K_GAUSS * 180.0 / PI) / ae.a.pow(1.5)
-        val mAnom = ae.ma + n * (jd - ae.epochJd)
-        val pos = positionFromElements(ae.a, ae.e, ae.i, ae.om, ae.w, mAnom)
+        val pos = asteroidPositionAt(ae, jd)
         val s = project(pos, centerX, centerY, maxRadiusPx, azRad, tiltRad)
 
         if (mono) {

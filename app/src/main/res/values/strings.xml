@@ -2,24 +2,39 @@
 <resources>
     <string name="app_name">20137-1996-PX8</string>
     <string name="wallpaper_description">Solar system + near-Earth asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
-    <string name="set_wallpaper_button">Set as Live Wallpaper</string>
-    <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
-    <string name="reset_camera_button">Reset View</string>
     <string name="widget_description">Live snapshot of the solar system + asteroid tracker, resizable to any size.</string>
-    <string name="more_options_collapsed">Options ▾</string>
-    <string name="more_options_expanded">Options ▴</string>
 
-    <string name="status_loading">Fetching asteroid orbit from JPL…</string>
-    <string name="status_ok">Live JPL orbit (%1$s) · tap to refresh</string>
-    <string name="status_fallback">Catalog orbit — JPL unreachable · tap to retry</string>
+    <string name="set_wallpaper_button">Set as Wallpaper</string>
+    <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
+    <string name="options">Options</string>
+    <string name="close_options">Close options</string>
 
-    <string name="chip_monochrome">Mono</string>
-    <string name="chip_planet_labels">Labels</string>
-    <string name="chip_asteroid_label">Ast. label</string>
-    <string name="chip_drift">Drift</string>
-    <string name="chip_parallax">Parallax</string>
-    <string name="chip_real_time">Real-time</string>
-    <string name="chip_custom">Custom</string>
+    <string name="section_time">Time</string>
+    <string name="section_appearance">Appearance</string>
+    <string name="section_camera">Camera</string>
+    <string name="section_data">Asteroid data</string>
+
+    <string name="time_real">Real-time</string>
+    <string name="time_custom">Custom</string>
+    <string name="start_date">Start</string>
+    <string name="now">Now</string>
+    <string name="speed_caption">Speed · simulated days per second</string>
+    <string name="loop_caption">Loop back to start after</string>
+
+    <string name="toggle_monochrome">Monochrome</string>
+    <string name="toggle_planet_labels">Planet labels</string>
+    <string name="toggle_asteroid_label">Asteroid label</string>
+    <string name="toggle_drift">Slow camera drift</string>
+    <string name="toggle_parallax">Home-screen swipe parallax</string>
+    <string name="reset_camera_button">Reset camera</string>
+    <string name="refresh_data">Refresh from JPL</string>
+    <string name="data_explainer">Element tables come from JPL Horizons, integrated with planetary perturbations. Outside their span, and for planets beyond 3000 AD, positions are extrapolated and marked ≈.</string>
+
+    <string name="status_loading">Fetching orbit from JPL…</string>
+    <string name="status_ok">%1$s</string>
+    <string name="status_fallback">Built-in orbit · JPL unreachable · tap to retry</string>
+    <string name="approximate_suffix">≈ extrapolated</string>
+    <string name="color_selected">%1$s, selected</string>
 
     <string-array name="asteroid_color_entries">
         <item>Amber</item>
@@ -38,7 +53,7 @@
         <item>#b18cff</item>
     </string-array>
 
-    <string-array name="speed_chip_labels">
+    <string-array name="speed_labels">
         <item>0.5</item>
         <item>2</item>
         <item>8</item>
@@ -53,5 +68,20 @@
         <item>30</item>
         <item>120</item>
         <item>400</item>
+    </string-array>
+
+    <string-array name="loop_labels">
+        <item>1 y</item>
+        <item>5 y</item>
+        <item>10 y</item>
+        <item>50 y</item>
+        <item>100 y</item>
+    </string-array>
+    <string-array name="loop_values">
+        <item>1</item>
+        <item>5</item>
+        <item>10</item>
+        <item>50</item>
+        <item>100</item>
     </string-array>
 </resources>

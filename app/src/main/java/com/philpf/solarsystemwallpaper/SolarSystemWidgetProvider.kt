@@ -80,7 +80,7 @@ class SolarSystemWidgetProvider : AppWidgetProvider() {
             )
             renderer.render(
                 canvas, widthPx.toFloat(), heightPx.toFloat(),
-                prefs.simulatedMillis(), camera, style, prefs.asteroidOrbit,
+                prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt,
             )
 
             val views = RemoteViews(context.packageName, R.layout.widget_solar_system)

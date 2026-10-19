@@ -2,7 +2,8 @@
 
 A native Android live wallpaper showing the Sun, all 8 planets, and near-Earth
 asteroid **(20137) Angeljorba**, animated with real Keplerian orbital mechanics
-(J2000 mean elements, Newton-Raphson Kepler solve, full 3D ecliptic projection).
+(JPL's 3000 BC–3000 AD planetary elements, JPL Horizons element tables for the
+asteroid, Newton-Raphson Kepler solve, full 3D ecliptic projection).
 
 This is a from-scratch Kotlin/Android port of the browser prototype in
 [`design_handoff_solar_system_wallpaper/`](design_handoff_solar_system_wallpaper/)
@@ -12,32 +13,36 @@ orbital math and visual design were ported natively.
 
 ## App design
 
-The app is a single screen: a full-bleed live preview you can drag to rotate and
-pinch to zoom (same gesture mapping as the HTML reference's camera controls),
-with every option overlaid directly on top — no separate settings or preview
-screens to navigate between. This mirrors the reference's own bottom control
-bar, adapted into stacked rows since a phone doesn't have the desktop width for
-one long row of controls.
+One screen. The live scene fills it edge-to-edge (under the status and
+navigation bars); drag to rotate, pinch to zoom — the same gesture mapping as
+the HTML reference, and the camera the wallpaper and widget use. It auto-saves
+when a gesture ends.
 
-- **Title** is the app name, shown top-left over the canvas.
-- **Always visible**: accent color swatches and the two primary actions,
-  **Options** and **Set as Live Wallpaper** — kept deliberately minimal so the
-  live preview isn't crowded on open.
-- **Options** (collapsed by default; tap to expand): toggle chips (monochrome
-  mode, planet labels, asteroid label, ambient camera drift, home-screen swipe
-  parallax), time drive (Real-time / Custom, with a start date/time picker and
-  a speed selector — 0.5–400 simulated days/sec, the original prototype's speed
-  presets — once Custom is selected), and Reset View.
-- **Accent color swatches**: picks the asteroid's color *and* the app's own UI
-  accent (buttons, title, active-state highlights) at once, so they always
-  match — six options (amber, coral, sky blue, pink, mint, violet).
-- **Set as Live Wallpaper** jumps straight to the system's live-wallpaper
-  preview/set screen via `ACTION_CHANGE_LIVE_WALLPAPER`, bypassing OEM
-  wallpaper pickers that don't surface a live wallpapers category.
+The controls float on top as "Liquid Glass"-style panels (`GlassUi.kt`).
+Android has no system glass material, so each panel re-draws the live scene
+behind itself, offset to line up with the full-screen preview, and blurs and
+saturates it with a `RenderEffect` on Android 12+, making the panels genuinely
+frosted over the moving planets. A gradient rim and a soft top sheen give the
+lit-glass edge. Older Android versions fall back to a tinted translucent panel.
 
-Dragging/pinching the preview auto-saves the camera angle as soon as the
-gesture ends — there's no separate "save" step, since positioning happens on
-the same screen used to set the wallpaper.
+- **Top capsule** — the app name, the simulated date being shown (marked
+  "≈ extrapolated" outside the range the data covers), and where the asteroid
+  data came from. Tap it to refresh from JPL.
+- **Dock** — accent color swatches, the options button, and **Set as
+  Wallpaper**, which opens the system's live-wallpaper preview/set screen
+  directly (`ACTION_CHANGE_LIVE_WALLPAPER`), bypassing OEM wallpaper pickers
+  that don't show a live wallpapers category.
+- **Options sheet** — slides up above the dock and scrolls if it doesn't fit:
+  - *Time*: Real-time or Custom. Custom has a start date (1000–2999 AD), a
+    **Now** shortcut, a speed (0.5–400 simulated days per second) and a loop
+    length (1–100 years).
+  - *Appearance*: monochrome, planet labels, asteroid label.
+  - *Camera*: slow drift, home-screen swipe parallax, reset.
+  - *Asteroid data*: what the data is, and a refresh button.
+
+The accent color tints the asteroid *and* the app's own controls, so they
+always match. All panels fade while you drag the scene, so they don't hide
+what you're positioning.
 
 ## Home-screen widget
 
@@ -74,16 +79,27 @@ differs.
    of perihelion — where along the orbit the closest-to-Sun point sits,
    measured from that crossing), `ma`/M (mean anomaly — where the body sits
    along its orbit at the epoch, as an angle).
-   - Planets use published J2000 mean elements plus a per-century drift rate
-     for each (the `PLANETS` array), so `planetElementsAt(planet, T)` just
-     linearly extrapolates `a, e, i, L, ϖ, Ω` to centuries-since-J2000 `T`,
-     then derives `w = ϖ − Ω` and `M = L − ϖ`.
-   - The asteroid uses real osculating elements for a specific epoch (fetched
-     live from JPL, or the build-time-baked fallback — see above), then its
-     mean anomaly is propagated forward in time via `M = ma + n·(jd − epoch)`,
-     where `n` (mean motion, degrees/day) comes directly from Kepler's third
-     law: `n = (k·180/π) / a^1.5`, `k` being the Gaussian gravitational
-     constant.
+   - **Planets** use JPL's long-span approximate elements (Standish, table
+     2a/2b), fitted for 3000 BC – 3000 AD: a value at J2000 plus a rate per
+     century for each element, and extra long-period terms for Jupiter–Neptune.
+     `planetElementsAt(planet, T)` evaluates them at centuries-since-J2000 `T`
+     and derives `w = ϖ − Ω` and `M = L − ϖ`. (The design handoff used table 1,
+     fitted only for 1800–2050.) Outside 3000 BC – 3000 AD, the slow drift of
+     each orbit's shape and orientation is held at the edge of the fit rather
+     than extrapolated, while the planet keeps moving along its orbit at its
+     mean motion — so positions become approximate but orbits never deform.
+     Extrapolating linearly instead gives nonsense: by the year 20,000 it
+     gives Saturn a negative eccentricity.
+   - **The asteroid** uses a *table* of osculating elements from JPL Horizons,
+     sampled every few months across up to 1600–2500 AD. JPL produced those by
+     numerically integrating the orbit with the planets' pull included. For any
+     date, `nearestOrbit()` picks the closest sample and propagates from it via
+     `M = ma + n·(jd − epoch)`, with `n` (degrees/day) from the table or from
+     Kepler's third law. Propagating a few weeks from a nearby sample is
+     accurate; propagating decades from a single set of elements, as before,
+     is not, because Jupiter and close passes by Mars keep changing the orbit.
+     If Horizons is unreachable, a single JPL SBDB element set is used, and
+     failing that, the one baked in at build time.
 2. **Mean anomaly → true position in the orbital plane.** `M` is an angle that
    advances at a constant rate, but a body actually moves faster near
    perihelion — so `solveKepler()` numerically solves Kepler's equation
@@ -109,17 +125,22 @@ differs.
 ## Project layout
 
 - `app/src/main/java/com/philpf/solarsystemwallpaper/OrbitalMechanics.kt` — planet
-  elements table + Kepler solver + ecliptic projection, ported line-for-line from
-  the reference `PLANETS` array and math functions.
+  element table, Kepler solver, ecliptic rotation and nearest-epoch lookup. Plain
+  Kotlin, covered by `app/src/test/.../OrbitalMechanicsTest.kt` (real opposition
+  dates, far-future sanity, clock and parser behaviour).
+- `SimulationClock.kt` — maps real time to simulated time (see Time drive below).
+- `AsteroidOrbitFetcher.kt`, `EphemerisFormats.kt`, `AsteroidEphemeris.kt` —
+  fetch the JPL element table, parse it, and store/cache it on the device.
+- `GlassUi.kt` — the glass panel, backdrop blur, toggle, segmented control and
+  capsule buttons.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemRenderer.kt` — the
   Canvas2D-style drawing code (ported from the reference `draw()`), shared by the
   live wallpaper and the in-app preview so both stay pixel-identical.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/MainActivity.kt` +
-  `SolarSystemPreviewView.kt` — the single app screen described above: the
-  interactive preview (drag 0.35/0.25 sensitivity, tilt clamped 0–85°, zoom
-  clamped 0.3–6×, matching the reference's `setupCameraControls()`) plus all
-  the option chips/swatches/pickers built and styled dynamically in code so
-  they can react to the live-selected accent color.
+  `SolarSystemPreviewView.kt` — the single app screen described above. The
+  preview (drag 0.35/0.25 sensitivity, tilt clamped 0–85°, zoom 0.3–6×, as in
+  the reference's `setupCameraControls()`) is also the scene source the glass
+  panels blur.
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemWallpaperService.kt`
   — the `WallpaperService.Engine` that owns the render loop (`SurfaceHolder` +
   `Canvas`, ~30fps, paused when not visible) and layers ambient azimuth drift /
@@ -141,29 +162,27 @@ differs.
 
 - **Renderer**: Canvas2D-style `SurfaceHolder`/`Canvas` (not OpenGL) — the
   recommended default.
-- **Asteroid trajectory verified live from the app, not just baked at build
-  time**: `MainActivity` fetches real elements from JPL's Small-Body Database
-  on open (`AsteroidOrbitFetcher.kt`, same direct-request-then-relay chain as
-  the HTML reference's `fetchAsteroid()`), shows a status line so you can see
-  whether it's live or fallback, and lets you tap it to retry. The result is
-  cached in `WallpaperPrefs` so the wallpaper engine's next frame picks it up
-  too. This does require `INTERNET` permission (the one place in the app that
-  needs it) — but only `MainActivity` ever makes the network call; the
-  `WallpaperService` itself never does, it only reads whatever was last
-  cached, and falls back to the build-time-baked `AsteroidElements.kt`
-  (generated by `:app:generateAsteroidElements` in `app/build.gradle.kts`,
-  same JPL source, fetched once at build time) if no live fetch has ever
-  succeeded. So the shipped wallpaper still can't end up broken if the device
-  is offline — it just won't have as fresh an orbit.
+- **Asteroid data fetched by the app**: on open (at most weekly, or whenever
+  you tap the top capsule), `MainActivity` fetches the JPL Horizons table in
+  the background. It tries the widest date span first, falls back to narrower
+  ones, and tries a direct request and then four read-only relays. The table is
+  stored on the device, so the wallpaper and widget use it without any network
+  access of their own. This needs the `INTERNET` permission, but only the app
+  screen uses it; if the device is offline, the last stored data (or the
+  build-time fallback) is used.
 - **Touch/drag camera dropped from the wallpaper itself** — live wallpapers don't
   reliably own touch — but not from the app: the main screen reproduces the HTML
   reference's drag/pinch camera controls, and the resulting angle is saved as
   the wallpaper's fixed camera (default 22° tilt if never adjusted). Azimuth can
   additionally drift slowly and/or respond to home-screen swipe offset on top of
   the saved angle (both toggleable inline).
-- **Time drive**: defaults to real wall-clock time, with a "Custom" mode that
-  lets you pick a start date/time and a speed (0.5–400 simulated days/sec) for
-  more visible ambient motion or jumping to an arbitrary date.
+- **Time drive**: defaults to real wall-clock time. Custom mode plays forward
+  from a start date at the chosen speed and **loops back to the start** after
+  the chosen span. The clock is anchored to a stored real-time instant so it
+  survives the wallpaper restarting, which means it also advances while the app
+  is closed; without the loop, a day away at 30 days/sec would put the scene
+  ~7,000 years in the future, far outside any valid model. Changing speed or
+  loop length keeps the current simulated date instead of jumping.
 - **Target 30fps**, render loop stops in `onVisibilityChanged(false)` /
   `onSurfaceDestroyed`.
 
@@ -186,7 +205,7 @@ a build:
 
 Install with `adb install app/build/outputs/apk/debug/app-debug.apk`. Open the
 app from your app drawer, drag/pinch to position the view, adjust any options,
-and tap **Set as Live Wallpaper** — this jumps straight to the system's
+and tap **Set as Wallpaper** — this jumps straight to the system's
 live-wallpaper preview/set screen, which works even on OEM launchers whose own
 wallpaper picker doesn't surface a "Live wallpapers" category. (The OS picker
 at **Settings > Wallpaper > Live wallpapers**, where available, works too.)

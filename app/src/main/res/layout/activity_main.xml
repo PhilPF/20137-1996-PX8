@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background">
@@ -9,183 +11,145 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
-    <LinearLayout
+    <!-- Top info capsule: name, simulated date, data source (tap to refresh) -->
+    <com.philpf.solarsystemwallpaper.GlassPanel
+        android:id="@+id/hudPanel"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"
-        android:layout_margin="20dp"
-        android:orientation="vertical">
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:glassCornerRadius="24dp">
 
-        <TextView
-            android:id="@+id/titleText"
+        <LinearLayout
+            android:id="@+id/hudContent"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.01"
-            android:shadowColor="@color/background"
-            android:shadowRadius="6"
-            android:shadowDx="0"
-            android:shadowDy="0" />
+            android:background="?android:attr/selectableItemBackground"
+            android:orientation="vertical"
+            android:paddingStart="18dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="20dp"
+            android:paddingBottom="12dp">
 
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="monospace"
-            android:textSize="11sp"
-            android:shadowColor="@color/background"
-            android:shadowRadius="6"
-            android:shadowDx="0"
-            android:shadowDy="0" />
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.01"
+                android:text="@string/app_name"
+                android:textColor="@color/glass_text"
+                android:textSize="17sp" />
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/dateText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFeatureSettings="tnum"
+                android:textColor="@color/glass_text_secondary"
+                android:textSize="13sp" />
 
-    <ScrollView
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:maxWidth="280dp"
+                android:textSize="11sp" />
+        </LinearLayout>
+    </com.philpf.solarsystemwallpaper.GlassPanel>
+
+    <!-- Options sheet, shown above the dock -->
+    <com.philpf.solarsystemwallpaper.GlassPanel
+        android:id="@+id/optionsSheet"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="@color/chrome_bar_bg"
-        android:maxHeight="420dp"
-        android:fillViewport="false">
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:visibility="gone"
+        app:glassCornerRadius="30dp">
+
+        <com.philpf.solarsystemwallpaper.MaxHeightScrollView
+            android:id="@+id/optionsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fadingEdgeLength="24dp"
+            android:overScrollMode="never"
+            android:requiresFadingEdge="vertical"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/optionsContent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingStart="20dp"
+                android:paddingTop="6dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="20dp" />
+        </com.philpf.solarsystemwallpaper.MaxHeightScrollView>
+    </com.philpf.solarsystemwallpaper.GlassPanel>
+
+    <!-- Bottom dock -->
+    <com.philpf.solarsystemwallpaper.GlassPanel
+        android:id="@+id/dockPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="12dp"
+        app:glassCornerRadius="32dp">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- Always visible: accent color + the two primary actions -->
-
-            <LinearLayout
-                android:id="@+id/swatchRow"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
+            android:padding="14dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="14dp">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/moreOptionsButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="10dp"
-                    android:minWidth="0dp"
-                    android:text="@string/more_options_collapsed"
-                    android:textAllCaps="false" />
-
-                <Button
-                    android:id="@+id/setWallpaperButton"
+                <LinearLayout
+                    android:id="@+id/swatchRow"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/set_wallpaper_button"
-                    android:textStyle="bold"
-                    android:textAllCaps="false" />
-
-            </LinearLayout>
-
-            <!-- Hidden until "More options" is tapped -->
-
-            <LinearLayout
-                android:id="@+id/advancedPanel"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginTop="16dp"
-                    android:layout_marginBottom="16dp"
-                    android:background="@color/chrome_panel_bg" />
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:scrollbars="none">
-
-                    <LinearLayout
-                        android:id="@+id/toggleRow"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal" />
-
-                </HorizontalScrollView>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:layout_marginTop="14dp">
+                    android:paddingStart="2dp" />
 
-                    <Button
-                        android:id="@+id/realTimeChip"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginEnd="8dp"
-                        android:text="@string/chip_real_time"
-                        android:textAllCaps="false" />
+                <FrameLayout
+                    android:id="@+id/optionsButton"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:contentDescription="@string/options">
 
-                    <Button
-                        android:id="@+id/customChip"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/chip_custom"
-                        android:textAllCaps="false" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/customControls"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_marginTop="10dp">
-
-                    <Button
-                        android:id="@+id/startDateButton"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textAllCaps="false" />
-
-                    <HorizontalScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:scrollbars="none">
-
-                        <LinearLayout
-                            android:id="@+id/speedRow"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal" />
-
-                    </HorizontalScrollView>
-
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/resetViewButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:text="@string/reset_camera_button"
-                    android:textColor="@color/foreground"
-                    android:textAllCaps="false" />
-
+                    <ImageView
+                        android:id="@+id/optionsIcon"
+                        android:layout_width="22dp"
+                        android:layout_height="22dp"
+                        android:layout_gravity="center"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_tune" />
+                </FrameLayout>
             </LinearLayout>
 
+            <TextView
+                android:id="@+id/setWallpaperButton"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/set_wallpaper_button"
+                android:textSize="16sp" />
         </LinearLayout>
-    </ScrollView>
+    </com.philpf.solarsystemwallpaper.GlassPanel>
 
 </FrameLayout>

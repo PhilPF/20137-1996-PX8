@@ -6,17 +6,17 @@ import android.app.WallpaperManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
-import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RippleDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
+import android.transition.ChangeBounds
+import android.transition.TransitionManager
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
@@ -33,6 +33,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -45,10 +46,10 @@ import kotlin.math.min
  * Single-screen app: the live scene fills the screen edge-to-edge (drag to rotate, pinch to
  * zoom — the camera the wallpaper and widget use), with floating glass chrome on top:
  *
- * - top capsule: name, the simulated date being shown, and where the asteroid data came from
- *   (tap to refresh it from JPL);
- * - bottom dock: accent color, the options button and the primary "Set as Wallpaper" action;
- * - options sheet (above the dock): time, appearance, camera and data settings.
+ * - top capsule: name, a dot showing the asteroid data status, and the simulated date
+ *   (tap it for the data details);
+ * - bottom dock: the options button and the primary "Set as Wallpaper" action;
+ * - options sheet (above the dock), one tab at a time: Time, Style, View, Data.
  *
  * The chrome fades while you drag the scene so it doesn't hide what you're positioning.
  */
@@ -60,22 +61,33 @@ class MainActivity : AppCompatActivity() {
     private lateinit var hudPanel: GlassPanel
     private lateinit var dockPanel: GlassPanel
     private lateinit var optionsSheet: GlassPanel
+    private lateinit var tabBarContainer: FrameLayout
     private lateinit var optionsScroll: MaxHeightScrollView
     private lateinit var optionsContent: LinearLayout
     private lateinit var dateText: TextView
-    private lateinit var statusText: TextView
-    private lateinit var swatchRow: LinearLayout
+    private lateinit var statusDot: View
     private lateinit var optionsButton: FrameLayout
     private lateinit var optionsIcon: ImageView
     private lateinit var setWallpaperButton: TextView
 
+    private lateinit var tabBar: GlassSegmentedControl
+    private val pages = ArrayList<LinearLayout>()
+    private var currentTab = TAB_TIME
+
     private val toggles = ArrayList<Pair<GlassToggle, () -> Boolean>>()
     private val secondaryButtons = ArrayList<TextView>()
+    private val accentTexts = ArrayList<TextView>()
     private lateinit var timeModeControl: GlassSegmentedControl
     private lateinit var speedControl: GlassSegmentedControl
     private lateinit var loopControl: GlassSegmentedControl
+    private lateinit var realTimeGroup: View
     private lateinit var customGroup: LinearLayout
-    private lateinit var startDateButton: TextView
+    private lateinit var startDateValue: TextView
+    private lateinit var swatchRow: LinearLayout
+    private lateinit var dataStatusDot: View
+    private lateinit var dataStatusValue: TextView
+    private lateinit var dataSourceValue: TextView
+    private lateinit var dataUpdatedValue: TextView
 
     private var sheetOpen = false
     private var fetchInFlight = false
@@ -92,6 +104,7 @@ class MainActivity : AppCompatActivity() {
 
     private val dateFormat = SimpleDateFormat("EEE d MMM yyyy · HH:mm", Locale.getDefault())
     private val startFormat = SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault())
+    private val updatedFormat = DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
 
     private val speedValues by lazy { resources.getStringArray(R.array.speed_values).map { it.toDouble() } }
     private val loopValues by lazy { resources.getStringArray(R.array.loop_values).map { it.toDouble() } }
@@ -118,35 +131,32 @@ class MainActivity : AppCompatActivity() {
         hudPanel = findViewById(R.id.hudPanel)
         dockPanel = findViewById(R.id.dockPanel)
         optionsSheet = findViewById(R.id.optionsSheet)
+        tabBarContainer = findViewById(R.id.tabBarContainer)
         optionsScroll = findViewById(R.id.optionsScroll)
         optionsContent = findViewById(R.id.optionsContent)
         dateText = findViewById(R.id.dateText)
-        statusText = findViewById(R.id.statusText)
-        swatchRow = findViewById(R.id.swatchRow)
+        statusDot = findViewById(R.id.statusDot)
         optionsButton = findViewById(R.id.optionsButton)
         optionsIcon = findViewById(R.id.optionsIcon)
         setWallpaperButton = findViewById(R.id.setWallpaperButton)
 
         listOf(hudPanel, dockPanel, optionsSheet).forEach { it.attachScene(previewView) }
 
-        buildSwatches()
         buildOptions()
+        showTab(currentTab, animate = false)
 
-        optionsButton.background = RippleDrawable(
-            ColorStateList.valueOf(0x40FFFFFF),
-            GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(0x2EFFFFFF, 0x12FFFFFF)).apply {
-                shape = GradientDrawable.OVAL
-                setStroke(dp(1f), 0x33FFFFFF)
-            },
-            GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.WHITE)
-            },
-        )
+        optionsButton.background = Glass.circleButtonBackground(this)
         optionsButton.isClickable = true
         optionsButton.setOnClickListener { setSheetOpen(!sheetOpen) }
         setWallpaperButton.setOnClickListener { setLiveWallpaper() }
-        findViewById<View>(R.id.hudContent).setOnClickListener { fetchAsteroidOrbit() }
+        findViewById<View>(R.id.hudContent).setOnClickListener {
+            if (sheetOpen && currentTab == TAB_DATA) {
+                setSheetOpen(false)
+            } else {
+                showTab(TAB_DATA, animate = sheetOpen)
+                setSheetOpen(true)
+            }
+        }
         previewView.onInteraction = { active -> fadeChrome(active) }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
@@ -185,7 +195,7 @@ class MainActivity : AppCompatActivity() {
         ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
             (hudPanel.layoutParams as ViewGroup.MarginLayoutParams).apply {
-                topMargin = dp(12f) + bars.top
+                topMargin = dp(10f) + bars.top
                 marginStart = dp(16f) + bars.left
                 marginEnd = dp(16f) + bars.right
             }
@@ -216,8 +226,9 @@ class MainActivity : AppCompatActivity() {
             optionsSheet.layoutParams = sheetLp
         }
         val hudBottom = (hudPanel.layoutParams as ViewGroup.MarginLayoutParams).topMargin + hudPanel.height
-        val available = root.height - bottom - hudBottom - dp(12f)
-        optionsScroll.maxHeightPx = max(dp(180f), min(available, (root.height * 0.62f).toInt()))
+        val available = min(root.height - bottom - hudBottom - dp(12f), (root.height * 0.62f).toInt())
+        val tabBarHeight = if (tabBarContainer.height > 0) tabBarContainer.height else dp(56f)
+        optionsScroll.maxHeightPx = max(dp(160f), available - tabBarHeight)
     }
 
     private fun setSheetOpen(open: Boolean) {
@@ -240,6 +251,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showTab(index: Int, animate: Boolean) {
+        currentTab = index
+        if (tabBar.selectedIndex != index) tabBar.select(index, animate)
+        if (animate && sheetOpen) {
+            TransitionManager.beginDelayedTransition(
+                root,
+                ChangeBounds().setDuration(220).setInterpolator(DecelerateInterpolator(1.6f)).addTarget(optionsSheet),
+            )
+        }
+        for ((i, page) in pages.withIndex()) page.visibility = if (i == index) View.VISIBLE else View.GONE
+        optionsScroll.scrollTo(0, 0)
+        if (animate) {
+            val page = pages[index]
+            page.alpha = 0f
+            page.animate().alpha(1f).setDuration(200).start()
+        }
+    }
+
     private fun fadeChrome(active: Boolean) {
         val target = if (active) 0.15f else 1f
         val duration = if (active) 160L else 320L
@@ -248,158 +277,258 @@ class MainActivity : AppCompatActivity() {
         if (sheetOpen) optionsSheet.animate().alpha(target).translationY(0f).setDuration(duration).start()
     }
 
-    // ---- Building controls ------------------------------------------------------------------
+    // ---- Building the options -----------------------------------------------------------------
 
-    private fun buildSwatches() {
-        swatchRow.removeAllViews()
+    private fun buildOptions() {
+        tabBar = GlassSegmentedControl(this).apply {
+            options = listOf(R.string.tab_time, R.string.tab_style, R.string.tab_view, R.string.tab_data).map { getString(it) }
+            onSelect = { showTab(it, animate = true) }
+        }
+        tabBarContainer.addView(tabBar, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+
+        optionsContent.removeAllViews()
+        pages.clear()
+        repeat(4) {
+            val page = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            pages.add(page)
+            optionsContent.addView(page, matchWrap())
+        }
+        buildTimePage(pages[TAB_TIME])
+        buildStylePage(pages[TAB_STYLE])
+        buildViewPage(pages[TAB_VIEW])
+        buildDataPage(pages[TAB_DATA])
+    }
+
+    private fun buildTimePage(page: LinearLayout) {
+        timeModeControl = segmented(page, listOf(getString(R.string.time_real), getString(R.string.time_custom)), top = 10f) { idx ->
+            prefs.setTimeModeIsRealTime(idx == 0)
+            refreshAll()
+        }
+        realTimeGroup = footnote(page, R.string.real_time_note)
+
+        customGroup = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        page.addView(customGroup, matchWrap())
+
+        val startGroup = group(customGroup, top = 14f)
+        startDateValue = valueText()
+        valueRow(startGroup, getString(R.string.start_date), startDateValue) { pickStartDate() }
+        divider(startGroup)
+        val nowLabel = rowTitle(getString(R.string.start_from_now)).also { accentTexts.add(it) }
+        row(startGroup, onClick = {
+            prefs.setCustomStartDate(System.currentTimeMillis())
+            refreshAll()
+        }).addView(nowLabel, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        caption(customGroup, R.string.speed_caption)
+        speedControl = segmented(customGroup, resources.getStringArray(R.array.speed_labels).toList()) { idx ->
+            prefs.setSpeedDaysPerSec(speedValues[idx])
+            refreshAll()
+        }
+        caption(customGroup, R.string.loop_caption)
+        loopControl = segmented(customGroup, resources.getStringArray(R.array.loop_labels).toList()) { idx ->
+            prefs.setLoopYears(loopValues[idx])
+            refreshAll()
+        }
+        footnote(customGroup, R.string.custom_note)
+    }
+
+    private fun buildStylePage(page: LinearLayout) {
+        caption(page, R.string.accent_caption, top = 10f)
+        val swatchGroup = group(page)
+        swatchRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, dp(8f), 0, dp(8f))
+        }
+        swatchGroup.addView(swatchRow, matchWrap())
         for ((idx, hex) in swatchValues.withIndex()) {
+            val cell = FrameLayout(this)
             val swatch = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(dp(36f), dp(36f)).apply { marginEnd = dp(4f) }
                 isClickable = true
                 isFocusable = true
+                tag = swatchNames.getOrElse(idx) { hex }
                 setOnClickListener {
                     prefs.setAsteroidColor(hex)
                     refreshAll()
                 }
             }
-            swatch.tag = swatchNames.getOrElse(idx) { hex }
-            swatchRow.addView(swatch)
+            cell.addView(swatch, FrameLayout.LayoutParams(dp(38f), dp(38f), Gravity.CENTER))
+            swatchRow.addView(cell, LinearLayout.LayoutParams(0, dp(44f), 1f))
         }
+
+        val rows = group(page, top = 14f)
+        toggleRow(rows, R.string.toggle_relative_sizes, R.string.toggle_relative_sizes_note, { prefs.relativeSizes }) {
+            prefs.setRelativeSizes(it)
+        }
+        divider(rows)
+        toggleRow(rows, R.string.toggle_planet_labels, null, { prefs.showPlanetLabels }) { prefs.setShowPlanetLabels(it) }
+        divider(rows)
+        toggleRow(rows, R.string.toggle_asteroid_label, null, { prefs.showAsteroidLabel }) { prefs.setShowAsteroidLabel(it) }
+        divider(rows)
+        toggleRow(rows, R.string.toggle_monochrome, null, { prefs.monochrome }) { prefs.setMonochrome(it) }
     }
 
-    private fun buildOptions() {
-        optionsContent.removeAllViews()
-
-        sectionHeader(R.string.section_time, first = true)
-        timeModeControl = segmented(listOf(getString(R.string.time_real), getString(R.string.time_custom))) { idx ->
-            prefs.setTimeModeIsRealTime(idx == 0)
-            refreshAll()
-        }
-        customGroup = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-        optionsContent.addView(customGroup, matchWrap())
-
-        val startRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        startDateButton = secondaryButton("") { pickStartDate() }
-        startRow.addView(startDateButton, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
-        val nowButton = secondaryButton(getString(R.string.now)) {
-            prefs.setCustomStartDate(System.currentTimeMillis())
-            refreshAll()
-        }
-        startRow.addView(
-            nowButton,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-                .apply { marginStart = dp(8f) },
-        )
-        customGroup.addView(startRow, matchWrap(top = 12f))
-
-        customGroup.addView(caption(R.string.speed_caption), matchWrap(top = 14f))
-        speedControl = segmented(resources.getStringArray(R.array.speed_labels).toList(), customGroup) { idx ->
-            prefs.setSpeedDaysPerSec(speedValues[idx])
-            refreshAll()
-        }
-        customGroup.addView(caption(R.string.loop_caption), matchWrap(top = 14f))
-        loopControl = segmented(resources.getStringArray(R.array.loop_labels).toList(), customGroup) { idx ->
-            prefs.setLoopYears(loopValues[idx])
-            refreshAll()
-        }
-
-        sectionHeader(R.string.section_appearance)
-        toggleRow(R.string.toggle_monochrome, { prefs.monochrome }, { prefs.setMonochrome(it) })
-        hairline()
-        toggleRow(R.string.toggle_planet_labels, { prefs.showPlanetLabels }, { prefs.setShowPlanetLabels(it) })
-        hairline()
-        toggleRow(R.string.toggle_asteroid_label, { prefs.showAsteroidLabel }, { prefs.setShowAsteroidLabel(it) })
-
-        sectionHeader(R.string.section_camera)
-        toggleRow(R.string.toggle_drift, { prefs.azimuthDrift }, { prefs.setAzimuthDrift(it) })
-        hairline()
-        toggleRow(R.string.toggle_parallax, { prefs.parallax }, { prefs.setParallax(it) })
-        optionsContent.addView(secondaryButton(getString(R.string.reset_camera_button)) { previewView.resetCamera() }, matchWrap(top = 12f))
-
-        sectionHeader(R.string.section_data)
-        optionsContent.addView(
-            TextView(this).apply {
-                text = getString(R.string.data_explainer)
-                setTextColor(Glass.TEXT_SECONDARY)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
-                setLineSpacing(0f, 1.15f)
-            },
-            matchWrap(),
-        )
-        optionsContent.addView(secondaryButton(getString(R.string.refresh_data)) { fetchAsteroidOrbit() }, matchWrap(top = 12f))
+    private fun buildViewPage(page: LinearLayout) {
+        val rows = group(page, top = 10f)
+        toggleRow(rows, R.string.toggle_drift, R.string.toggle_drift_note, { prefs.azimuthDrift }) { prefs.setAzimuthDrift(it) }
+        divider(rows)
+        toggleRow(rows, R.string.toggle_parallax, R.string.toggle_parallax_note, { prefs.parallax }) { prefs.setParallax(it) }
+        page.addView(secondaryButton(getString(R.string.reset_camera_button)) { previewView.resetCamera() }, matchWrap(top = 14f))
+        footnote(page, R.string.view_note)
     }
+
+    private fun buildDataPage(page: LinearLayout) {
+        val info = group(page, top = 10f)
+        dataStatusDot = View(this)
+        dataStatusValue = valueText()
+        val statusRow = row(info)
+        statusRow.addView(rowTitle(getString(R.string.data_status)), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        statusRow.addView(dataStatusDot, LinearLayout.LayoutParams(dp(7f), dp(7f)).apply { marginEnd = dp(8f) })
+        statusRow.addView(dataStatusValue)
+        divider(info)
+        dataSourceValue = valueText()
+        valueRow(info, getString(R.string.data_source), dataSourceValue)
+        divider(info)
+        dataUpdatedValue = valueText()
+        valueRow(info, getString(R.string.data_updated), dataUpdatedValue)
+
+        page.addView(secondaryButton(getString(R.string.refresh_data)) { fetchAsteroidOrbit() }, matchWrap(top = 14f))
+        footnote(page, R.string.data_explainer)
+    }
+
+    // ---- Building blocks ----------------------------------------------------------------------
 
     private fun matchWrap(top: Float = 0f) =
         LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { topMargin = dp(top) }
 
-    private fun sectionHeader(textRes: Int, first: Boolean = false) {
-        val header = TextView(this).apply {
-            text = getString(textRes).uppercase(Locale.getDefault())
-            setTextColor(Glass.TEXT_SECONDARY)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11.5f)
-            letterSpacing = 0.1f
-            typeface = Glass.medium
+    /** Rounded translucent block holding a few rows. */
+    private fun group(parent: LinearLayout, top: Float = 0f): LinearLayout {
+        val g = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = Glass.groupBackground(this@MainActivity)
+            setPadding(dp(6f), dp(2f), dp(6f), dp(2f))
         }
-        optionsContent.addView(header, matchWrap(top = if (first) 14f else 24f).apply { bottomMargin = dp(10f) })
+        parent.addView(g, matchWrap(top))
+        return g
     }
 
-    private fun caption(textRes: Int) = TextView(this).apply {
-        text = getString(textRes)
+    private fun row(group: LinearLayout, onClick: (() -> Unit)? = null): LinearLayout {
+        val r = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(50f)
+            setPadding(dp(10f), dp(6f), dp(8f), dp(6f))
+            if (onClick != null) {
+                background = Glass.rowBackground(this@MainActivity)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { onClick() }
+            }
+        }
+        group.addView(r, matchWrap())
+        return r
+    }
+
+    private fun rowTitle(text: String) = TextView(this).apply {
+        this.text = text
+        setTextColor(Glass.TEXT_PRIMARY)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f)
+    }
+
+    private fun valueText() = TextView(this).apply {
         setTextColor(Glass.TEXT_SECONDARY)
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, 14.5f)
+        gravity = Gravity.END
+        maxLines = 2
+        ellipsize = TextUtils.TruncateAt.END
     }
 
-    private fun hairline() {
-        optionsContent.addView(
+    private fun valueRow(group: LinearLayout, title: String, value: TextView, onClick: (() -> Unit)? = null) {
+        val r = row(group, onClick)
+        r.addView(rowTitle(title), LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        r.addView(value, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(16f) })
+    }
+
+    private fun divider(group: LinearLayout) {
+        group.addView(
             View(this).apply { setBackgroundColor(Glass.HAIRLINE) },
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, max(1, dp(0.6f))),
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, max(1, dp(0.6f))).apply {
+                marginStart = dp(10f)
+                marginEnd = dp(4f)
+            },
         )
     }
 
+    private fun caption(parent: LinearLayout, textRes: Int, top: Float = 16f) {
+        parent.addView(
+            TextView(this).apply {
+                text = getString(textRes)
+                setTextColor(Glass.TEXT_SECONDARY)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            },
+            matchWrap(top).apply {
+                bottomMargin = dp(8f)
+                marginStart = dp(6f)
+            },
+        )
+    }
+
+    private fun footnote(parent: LinearLayout, textRes: Int): TextView {
+        val t = TextView(this).apply {
+            text = getString(textRes)
+            setTextColor(Glass.TEXT_TERTIARY)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            setLineSpacing(0f, 1.15f)
+        }
+        parent.addView(t, matchWrap(top = 10f).apply {
+            marginStart = dp(6f)
+            marginEnd = dp(6f)
+        })
+        return t
+    }
+
     private fun segmented(
+        parent: LinearLayout,
         labels: List<String>,
-        parent: LinearLayout = optionsContent,
+        top: Float = 0f,
         onSelect: (Int) -> Unit,
     ): GlassSegmentedControl {
         val control = GlassSegmentedControl(this).apply {
             options = labels
             this.onSelect = onSelect
         }
-        parent.addView(control, matchWrap(top = 8f))
+        parent.addView(control, matchWrap(top))
         return control
     }
 
-    private fun toggleRow(labelRes: Int, get: () -> Boolean, set: (Boolean) -> Unit) {
+    private fun toggleRow(group: LinearLayout, titleRes: Int, noteRes: Int?, get: () -> Boolean, set: (Boolean) -> Unit) {
         val toggle = GlassToggle(this).apply {
-            contentDescription = getString(labelRes)
+            contentDescription = getString(titleRes)
             onChange = { value ->
                 set(value)
                 refreshAll()
             }
         }
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(50f)
-            isClickable = true
-            setOnClickListener { toggle.performClick() }
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        val r = row(group, onClick = { toggle.performClick() })
+        r.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        val texts = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
-        row.addView(
-            TextView(this).apply {
-                text = getString(labelRes)
-                setTextColor(Glass.TEXT_PRIMARY)
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 15.5f)
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            },
-            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-        )
-        row.addView(toggle)
-        optionsContent.addView(row, matchWrap())
+        texts.addView(rowTitle(getString(titleRes)))
+        if (noteRes != null) {
+            texts.addView(
+                TextView(this).apply {
+                    text = getString(noteRes)
+                    setTextColor(Glass.TEXT_TERTIARY)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+                },
+                matchWrap(top = 1f),
+            )
+        }
+        r.addView(texts, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(12f) })
+        r.addView(toggle)
         toggles.add(toggle to get)
     }
 
@@ -417,10 +546,11 @@ class MainActivity : AppCompatActivity() {
         val accent = currentAccent()
         Glass.styleButton(setWallpaperButton, primary = true, accent = accent)
         secondaryButtons.forEach { Glass.styleButton(it, primary = false, accent = accent) }
+        accentTexts.forEach { it.setTextColor(accent) }
 
         val selected = prefs.asteroidColor
         for (i in 0 until swatchRow.childCount) {
-            val swatch = swatchRow.getChildAt(i)
+            val swatch = (swatchRow.getChildAt(i) as ViewGroup).getChildAt(0)
             val hex = swatchValues[i]
             val isSelected = hex.equals(selected, ignoreCase = true)
             swatch.background = Glass.swatch(this, Color.parseColor(hex), isSelected)
@@ -434,16 +564,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         val realTime = prefs.timeModeIsRealTime
-        timeModeControl.accent = accent
-        if (timeModeControl.selectedIndex != (if (realTime) 0 else 1)) timeModeControl.select(if (realTime) 0 else 1, animate = false)
-        speedControl.accent = accent
+        val modeIdx = if (realTime) 0 else 1
+        if (timeModeControl.selectedIndex != modeIdx) timeModeControl.select(modeIdx, animate = false)
         val speedIdx = nearestIndex(speedValues, prefs.speedDaysPerSec)
         if (speedControl.selectedIndex != speedIdx) speedControl.select(speedIdx, animate = false)
-        loopControl.accent = accent
         val loopIdx = nearestIndex(loopValues, prefs.loopYears)
         if (loopControl.selectedIndex != loopIdx) loopControl.select(loopIdx, animate = false)
-        customGroup.visibility = if (realTime) View.GONE else View.VISIBLE
-        startDateButton.text = getString(R.string.start_date) + "  " + startFormat.format(Date(prefs.customStartMillis))
+        val customVisibility = if (realTime) View.GONE else View.VISIBLE
+        if (customGroup.visibility != customVisibility) {
+            if (sheetOpen) {
+                TransitionManager.beginDelayedTransition(
+                    root,
+                    ChangeBounds().setDuration(220).setInterpolator(DecelerateInterpolator(1.6f)).addTarget(optionsSheet),
+                )
+            }
+            customGroup.visibility = customVisibility
+        }
+        realTimeGroup.visibility = if (realTime) View.VISIBLE else View.GONE
+        startDateValue.text = startFormat.format(Date(prefs.customStartMillis))
 
         refreshStatus()
         refreshDate()
@@ -470,16 +608,18 @@ class MainActivity : AppCompatActivity() {
         val snapshot = AsteroidEphemeris.snapshot(this)
         val status = prefs.asteroidStatus
         val (message, colorRes) = when {
-            status == WallpaperPrefs.STATUS_LOADING && fetchInFlight ->
-                getString(R.string.status_loading) to R.color.status_loading
-            status == WallpaperPrefs.STATUS_OK && snapshot != null ->
-                getString(R.string.status_ok, snapshot.label) to R.color.status_ok
-            snapshot != null ->
-                (snapshot.label + " · offline") to R.color.status_ok
+            status == WallpaperPrefs.STATUS_LOADING && fetchInFlight -> getString(R.string.status_loading) to R.color.status_loading
+            status == WallpaperPrefs.STATUS_OK && snapshot != null -> getString(R.string.status_ok) to R.color.status_ok
+            snapshot != null -> getString(R.string.status_offline) to R.color.status_ok
             else -> getString(R.string.status_fallback) to R.color.status_fallback
         }
-        statusText.text = "● $message"
-        statusText.setTextColor(getColor(colorRes))
+        val color = getColor(colorRes)
+        statusDot.background = Glass.dot(color)
+        statusDot.contentDescription = message
+        dataStatusDot.background = Glass.dot(color)
+        dataStatusValue.text = message
+        dataSourceValue.text = snapshot?.label ?: getString(R.string.data_builtin_source)
+        dataUpdatedValue.text = snapshot?.let { updatedFormat.format(Date(it.modified)) } ?: getString(R.string.data_never)
     }
 
     // ---- Actions ------------------------------------------------------------------------------
@@ -552,5 +692,12 @@ class MainActivity : AppCompatActivity() {
         } catch (_: ActivityNotFoundException) {
             Toast.makeText(this, getString(R.string.set_wallpaper_fallback), Toast.LENGTH_LONG).show()
         }
+    }
+
+    companion object {
+        private const val TAB_TIME = 0
+        private const val TAB_STYLE = 1
+        private const val TAB_VIEW = 2
+        private const val TAB_DATA = 3
     }
 }

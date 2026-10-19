@@ -9,30 +9,46 @@
     <string name="options">Options</string>
     <string name="close_options">Close options</string>
 
-    <string name="section_time">Time</string>
-    <string name="section_appearance">Appearance</string>
-    <string name="section_camera">Camera</string>
-    <string name="section_data">Asteroid data</string>
+    <string name="tab_time">Time</string>
+    <string name="tab_style">Style</string>
+    <string name="tab_view">View</string>
+    <string name="tab_data">Data</string>
 
     <string name="time_real">Real-time</string>
     <string name="time_custom">Custom</string>
-    <string name="start_date">Start</string>
-    <string name="now">Now</string>
+    <string name="real_time_note">Shows where everything is right now, moving at real speed.</string>
+    <string name="start_date">Start date</string>
+    <string name="start_from_now">Start from now</string>
     <string name="speed_caption">Speed · simulated days per second</string>
-    <string name="loop_caption">Loop back to start after</string>
+    <string name="loop_caption">Loop back to the start after</string>
+    <string name="custom_note">Playback restarts from the start date when the loop ends.</string>
 
-    <string name="toggle_monochrome">Monochrome</string>
+    <string name="accent_caption">Accent color</string>
+    <string name="toggle_relative_sizes">Proportional sizes</string>
+    <string name="toggle_relative_sizes_note">Sun and planets sized by their real radii</string>
     <string name="toggle_planet_labels">Planet labels</string>
     <string name="toggle_asteroid_label">Asteroid label</string>
-    <string name="toggle_drift">Slow camera drift</string>
-    <string name="toggle_parallax">Home-screen swipe parallax</string>
-    <string name="reset_camera_button">Reset camera</string>
-    <string name="refresh_data">Refresh from JPL</string>
-    <string name="data_explainer">Element tables come from JPL Horizons, integrated with planetary perturbations. Outside their span, and for planets beyond 3000 AD, positions are extrapolated and marked ≈.</string>
+    <string name="toggle_monochrome">Monochrome</string>
 
-    <string name="status_loading">Fetching orbit from JPL…</string>
-    <string name="status_ok">%1$s</string>
-    <string name="status_fallback">Built-in orbit · JPL unreachable · tap to retry</string>
+    <string name="toggle_drift">Slow camera drift</string>
+    <string name="toggle_drift_note">One full turn every two hours</string>
+    <string name="toggle_parallax">Swipe parallax</string>
+    <string name="toggle_parallax_note">Turns slightly as you swipe home screens</string>
+    <string name="reset_camera_button">Reset camera</string>
+    <string name="view_note">The wallpaper and widget use the angle and zoom set here.</string>
+
+    <string name="data_status">Status</string>
+    <string name="data_source">Source</string>
+    <string name="data_updated">Updated</string>
+    <string name="data_builtin_source">Orbit built into the app</string>
+    <string name="data_never">Never</string>
+    <string name="refresh_data">Refresh from JPL</string>
+    <string name="data_explainer">The asteroid follows a table of orbital elements from JPL Horizons, which already includes the pull of the planets. Planets use JPL\'s long-term formulas. Outside the table\'s span, and for planets beyond 3000 AD, positions are extrapolated and the date is marked ≈.</string>
+
+    <string name="status_loading">Fetching from JPL…</string>
+    <string name="status_ok">Live JPL data</string>
+    <string name="status_offline">Saved JPL data · offline</string>
+    <string name="status_fallback">Built-in orbit · JPL unreachable</string>
     <string name="approximate_suffix">≈ extrapolated</string>
     <string name="color_selected">%1$s, selected</string>
 

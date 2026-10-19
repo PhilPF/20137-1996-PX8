@@ -114,6 +114,7 @@ class SolarSystemWallpaperService : WallpaperService() {
                 showPlanetLabels = prefs.showPlanetLabels,
                 showAsteroidLabel = prefs.showAsteroidLabel,
                 asteroidColorHex = prefs.asteroidColor,
+                relativeSizes = prefs.relativeSizes,
             )
             renderer.render(
                 canvas, canvas.width.toFloat(), canvas.height.toFloat(),

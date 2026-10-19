@@ -77,6 +77,7 @@ class SolarSystemWidgetProvider : AppWidgetProvider() {
                 showPlanetLabels = prefs.showPlanetLabels,
                 showAsteroidLabel = prefs.showAsteroidLabel,
                 asteroidColorHex = prefs.asteroidColor,
+                relativeSizes = prefs.relativeSizes,
             )
             renderer.render(
                 canvas, widthPx.toFloat(), heightPx.toFloat(),

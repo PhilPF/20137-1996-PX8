@@ -18,27 +18,33 @@ navigation bars); drag to rotate, pinch to zoom — the same gesture mapping as
 the HTML reference, and the camera the wallpaper and widget use. It auto-saves
 when a gesture ends.
 
-The controls float on top as "Liquid Glass"-style panels (`GlassUi.kt`).
-Android has no system glass material, so each panel re-draws the live scene
-behind itself, offset to line up with the full-screen preview, and blurs and
-saturates it with a `RenderEffect` on Android 12+, making the panels genuinely
-frosted over the moving planets. A gradient rim and a soft top sheen give the
-lit-glass edge. Older Android versions fall back to a tinted translucent panel.
+The controls float on top as flat, frosted "Liquid Glass"-style panels
+(`GlassUi.kt`). Android has no system glass material, so each panel re-draws
+the live scene behind itself, offset to line up with the full-screen preview,
+and blurs it with a `RenderEffect` on Android 12+ — the planets genuinely move
+behind the glass. On top of the blur there is only a faint white gradient and a
+thin light rim; no sheen, bevels or shadows. Controls are flat too: translucent
+white tracks, a lighter glass pill for the selected segment, switches with a
+white capsule thumb that fill with the accent when on. Older Android versions
+fall back to a translucent fill.
 
-- **Top capsule** — the app name, the simulated date being shown (marked
-  "≈ extrapolated" outside the range the data covers), and where the asteroid
-  data came from. Tap it to refresh from JPL.
-- **Dock** — accent color swatches, the options button, and **Set as
-  Wallpaper**, which opens the system's live-wallpaper preview/set screen
-  directly (`ACTION_CHANGE_LIVE_WALLPAPER`), bypassing OEM wallpaper pickers
-  that don't show a live wallpapers category.
-- **Options sheet** — slides up above the dock and scrolls if it doesn't fit:
+- **Top capsule** — the app name, a dot for the asteroid data status (green:
+  JPL data, amber: fetching, orange: built-in fallback) and the simulated date
+  (marked "≈ extrapolated" outside the range the data covers). Tap it to jump
+  to the Data tab.
+- **Dock** — the options button and **Set as Wallpaper**, which opens the
+  system's live-wallpaper preview/set screen directly
+  (`ACTION_CHANGE_LIVE_WALLPAPER`), bypassing OEM wallpaper pickers that don't
+  show a live wallpapers category.
+- **Options sheet** — slides up above the dock and shows one tab at a time:
   - *Time*: Real-time or Custom. Custom has a start date (1000–2999 AD), a
-    **Now** shortcut, a speed (0.5–400 simulated days per second) and a loop
-    length (1–100 years).
-  - *Appearance*: monochrome, planet labels, asteroid label.
-  - *Camera*: slow drift, home-screen swipe parallax, reset.
-  - *Asteroid data*: what the data is, and a refresh button.
+    "Start from now" shortcut, a speed (0.5–400 simulated days per second) and
+    a loop length (1–100 years).
+  - *Style*: accent color, proportional sizes, planet labels, asteroid label,
+    monochrome.
+  - *View*: slow camera drift, home-screen swipe parallax, reset camera.
+  - *Data*: status, source and last update of the asteroid data, a refresh
+    button and a short explanation.
 
 The accent color tints the asteroid *and* the app's own controls, so they
 always match. All panels fade while you drag the scene, so they don't hide
@@ -116,11 +122,20 @@ differs.
    turn and gets `r` directly from the polar ellipse equation
    `r = a(1−e²)/(1+e·cos ν)`, since there's no "time" involved in tracing the
    whole shape.
-5. **3D → 2D screen projection**, in `SolarSystemRenderer.project()`: each
-   point's distance from the Sun is compressed by `sqrt()` (so Neptune isn't
-   pushed off-screen relative to Mercury), then rotated by the camera's
-   azimuth and tilted by its elevation angle — the same camera you set by
-   dragging/pinching the preview.
+5. **3D → 2D screen projection**, in `ViewProjection.kt`: each point's
+   distance from the Sun is compressed by `sqrt()` (so Neptune isn't pushed
+   off-screen relative to Mercury), then rotated by the camera's azimuth and
+   viewed from its tilt angle — the same camera you set by dragging/pinching
+   the preview. The camera sits above the ecliptic with north up, so the near
+   side of an orbit is lower on screen. (The handoff's projection had the
+   vertical sign flipped, which made inclined orbits lean the wrong way.) The
+   projection also returns each point's depth toward the viewer; the renderer
+   sorts the Sun, planets and asteroid by it and draws far to near, so a body
+   behind another is correctly hidden by it. Covered by `ViewProjectionTest.kt`.
+6. **Sizes.** By default every planet is the same small dot. *Proportional
+   sizes* (Style tab) scales each by its real radius, compressed as
+   `radius^0.42` so Mercury stays visible and Jupiter doesn't swamp the inner
+   planets, and enlarges the Sun. Distances are never to scale (see step 5).
 
 ## Project layout
 
@@ -131,8 +146,9 @@ differs.
 - `SimulationClock.kt` — maps real time to simulated time (see Time drive below).
 - `AsteroidOrbitFetcher.kt`, `EphemerisFormats.kt`, `AsteroidEphemeris.kt` —
   fetch the JPL element table, parse it, and store/cache it on the device.
-- `GlassUi.kt` — the glass panel, backdrop blur, toggle, segmented control and
-  capsule buttons.
+- `GlassUi.kt` — the glass panel, backdrop blur, switch, segmented control and
+  buttons.
+- `ViewProjection.kt` — the camera projection and depth (plain Kotlin, tested).
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemRenderer.kt` — the
   Canvas2D-style drawing code (ported from the reference `draw()`), shared by the
   live wallpaper and the in-app preview so both stay pixel-identical.

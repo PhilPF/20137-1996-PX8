@@ -83,6 +83,7 @@ class SolarSystemPreviewView @JvmOverloads constructor(
             showPlanetLabels = prefs.showPlanetLabels,
             showAsteroidLabel = prefs.showAsteroidLabel,
             asteroidColorHex = prefs.asteroidColor,
+            relativeSizes = prefs.relativeSizes,
         )
         val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
         renderer.render(canvas, width.toFloat(), height.toFloat(), frameSimMillis, camera, style, prefs::asteroidOrbitAt)

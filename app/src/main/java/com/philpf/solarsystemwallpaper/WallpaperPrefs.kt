@@ -22,6 +22,9 @@ class WallpaperPrefs(context: Context) {
     val showPlanetLabels: Boolean get() = prefs.getBoolean(KEY_SHOW_PLANET_LABELS, false)
     val showAsteroidLabel: Boolean get() = prefs.getBoolean(KEY_SHOW_ASTEROID_LABEL, false)
 
+    /** Sun and planet sizes follow their real radii (compressed) instead of all being equal. */
+    val relativeSizes: Boolean get() = prefs.getBoolean(KEY_RELATIVE_SIZES, false)
+
     /** Also the app's own UI accent color, so asteroid rendering and app chrome always match. */
     val asteroidColor: String get() = prefs.getString(KEY_ASTEROID_COLOR, DEFAULT_ACCENT_HEX) ?: DEFAULT_ACCENT_HEX
     val azimuthDrift: Boolean get() = prefs.getBoolean(KEY_AZIMUTH_DRIFT, true)
@@ -30,6 +33,7 @@ class WallpaperPrefs(context: Context) {
     fun setMonochrome(value: Boolean) = putBoolean(KEY_MONOCHROME, value, redrawWidgets = true)
     fun setShowPlanetLabels(value: Boolean) = putBoolean(KEY_SHOW_PLANET_LABELS, value, redrawWidgets = true)
     fun setShowAsteroidLabel(value: Boolean) = putBoolean(KEY_SHOW_ASTEROID_LABEL, value, redrawWidgets = true)
+    fun setRelativeSizes(value: Boolean) = putBoolean(KEY_RELATIVE_SIZES, value, redrawWidgets = true)
     fun setAzimuthDrift(value: Boolean) = putBoolean(KEY_AZIMUTH_DRIFT, value, redrawWidgets = false)
     fun setParallax(value: Boolean) = putBoolean(KEY_PARALLAX, value, redrawWidgets = false)
 
@@ -171,6 +175,7 @@ class WallpaperPrefs(context: Context) {
         const val KEY_MONOCHROME = "pref_monochrome"
         const val KEY_SHOW_PLANET_LABELS = "pref_show_planet_labels"
         const val KEY_SHOW_ASTEROID_LABEL = "pref_show_asteroid_label"
+        const val KEY_RELATIVE_SIZES = "pref_relative_sizes"
         const val KEY_ASTEROID_COLOR = "pref_asteroid_color"
         const val KEY_TIME_MODE = "pref_time_mode"
         const val KEY_SPEED_DAYS_PER_SEC = "pref_speed_days_per_sec"

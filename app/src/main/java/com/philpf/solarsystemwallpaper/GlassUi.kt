@@ -35,56 +35,68 @@ import kotlin.math.abs
 import kotlin.math.min
 
 /**
- * "Liquid Glass"-style controls. Android has no system glass material, so it is built here:
+ * Flat, translucent "Liquid Glass"-style controls. Android has no system glass material, so:
  *
  * - [GlassPanel] re-draws the live scene behind itself (through [GlassBackdropView], offset to
- *   line up with the full-screen preview) and blurs + saturates it with a [RenderEffect] on
- *   Android 12+, so panels are genuinely frosted over the moving planets. Older versions fall
- *   back to a tinted translucent fill.
- * - A specular gradient edge and a soft top sheen give the rim-lit glass look.
- * - [GlassToggle], [GlassSegmentedControl] and the capsule buttons from [Glass] follow the same
- *   rounded, translucent language, tinted with the app's accent color.
+ *   line up with the full-screen preview) and blurs it with a [RenderEffect] on Android 12+, then
+ *   lays a faint white gradient and a thin light rim over it. Older versions get a translucent fill.
+ * - Controls are flat: translucent white fills, no gradients, shadows or bevels. The accent color
+ *   is used sparingly (switches that are on, the primary button, the selected swatch).
  */
 object Glass {
-    const val TEXT_PRIMARY = 0xF2FFFFFF.toInt()
-    const val TEXT_SECONDARY = 0x99FFFFFF.toInt()
-    const val TEXT_ON_ACCENT = 0xFF14161E.toInt()
+    const val TEXT_PRIMARY = 0xF5FFFFFF.toInt()
+    const val TEXT_SECONDARY = 0xA6FFFFFF.toInt()
+    const val TEXT_TERTIARY = 0x70FFFFFF
+    const val TEXT_ON_ACCENT = 0xFF101219.toInt()
     const val HAIRLINE = 0x1AFFFFFF
+
+    /** Fill for controls sitting on a panel (segmented track, secondary buttons, switch off). */
+    const val CONTROL_FILL = 0x1AFFFFFF
+
+    /** Fill for grouped rows inside a panel. */
+    const val GROUP_FILL = 0x0FFFFFFF
 
     val medium: Typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
 
     fun dp(context: Context, value: Float): Float = value * context.resources.displayMetrics.density
 
-    /** Mixes [color] toward white by [amount] (0..1), keeping its alpha. */
-    fun lighten(color: Int, amount: Float): Int {
-        fun mix(c: Int) = (c + (255 - c) * amount).toInt().coerceIn(0, 255)
-        return Color.argb(Color.alpha(color), mix(Color.red(color)), mix(Color.green(color)), mix(Color.blue(color)))
-    }
-
-    private fun capsule(context: Context, top: Int, bottom: Int, stroke: Int): GradientDrawable =
-        GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(top, bottom)).apply {
-            cornerRadius = dp(context, 100f)
-            setStroke(dp(context, 1f).toInt(), stroke)
-        }
-
-    private fun ripple(context: Context, content: Drawable): Drawable {
+    private fun ripple(context: Context, content: Drawable, oval: Boolean = false, radiusDp: Float = 100f): Drawable {
         val mask = GradientDrawable().apply {
-            cornerRadius = dp(context, 100f)
+            if (oval) shape = GradientDrawable.OVAL else cornerRadius = dp(context, radiusDp)
             setColor(Color.WHITE)
         }
-        return RippleDrawable(ColorStateList.valueOf(0x40FFFFFF), content, mask)
+        return RippleDrawable(ColorStateList.valueOf(0x33FFFFFF), content, mask)
     }
 
-    fun glassButtonBackground(context: Context): Drawable =
-        ripple(context, capsule(context, 0x2EFFFFFF, 0x12FFFFFF, 0x33FFFFFF))
+    private fun flat(context: Context, color: Int, radiusDp: Float = 100f): GradientDrawable =
+        GradientDrawable().apply {
+            cornerRadius = dp(context, radiusDp)
+            setColor(color)
+        }
 
-    fun accentButtonBackground(context: Context, accent: Int): Drawable =
-        ripple(context, capsule(context, lighten(accent, 0.30f), accent, 0x59FFFFFF))
+    fun primaryButtonBackground(context: Context, accent: Int): Drawable = ripple(context, flat(context, accent))
 
-    /** Styles a TextView as a capsule button; avoids AppCompat Button defaults (insets, shadows, caps). */
+    fun secondaryButtonBackground(context: Context): Drawable = ripple(context, flat(context, CONTROL_FILL))
+
+    fun circleButtonBackground(context: Context): Drawable =
+        ripple(context, GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(CONTROL_FILL) }, oval = true)
+
+    /** Rounded block that groups rows inside a panel (like iOS inset grouped lists). */
+    fun groupBackground(context: Context): Drawable = flat(context, GROUP_FILL, radiusDp = 18f)
+
+    /** Ripple for a tappable row inside a group. */
+    fun rowBackground(context: Context): Drawable =
+        RippleDrawable(ColorStateList.valueOf(0x1FFFFFFF), null, flat(context, Color.WHITE, radiusDp = 12f))
+
+    fun dot(color: Int): Drawable = GradientDrawable().apply {
+        shape = GradientDrawable.OVAL
+        setColor(color)
+    }
+
+    /** Styles a TextView as a flat capsule button; avoids AppCompat Button defaults (insets, shadows, caps). */
     fun styleButton(view: TextView, primary: Boolean, accent: Int) {
         val c = view.context
-        view.background = if (primary) accentButtonBackground(c, accent) else glassButtonBackground(c)
+        view.background = if (primary) primaryButtonBackground(c, accent) else secondaryButtonBackground(c)
         view.setTextColor(if (primary) TEXT_ON_ACCENT else TEXT_PRIMARY)
         view.typeface = medium
         view.gravity = Gravity.CENTER
@@ -95,23 +107,20 @@ object Glass {
         view.setPadding(h, 0, h, 0)
     }
 
-    /** Color swatch: a glossy sphere, ringed when selected. */
+    /** Flat color dot; the selected one gets a thin white ring around it. */
     fun swatch(context: Context, color: Int, selected: Boolean): Drawable {
-        val fill = GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            intArrayOf(lighten(color, 0.35f), color),
-        ).apply {
+        val fill = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setStroke(dp(context, 1f).toInt(), 0x4DFFFFFF)
+            setColor(color)
         }
         if (!selected) return LayerDrawable(arrayOf(fill)).apply {
-            val inset = dp(context, 3f).toInt()
+            val inset = dp(context, 5f).toInt()
             setLayerInset(0, inset, inset, inset, inset)
         }
         val ring = GradientDrawable().apply {
             shape = GradientDrawable.OVAL
             setColor(Color.TRANSPARENT)
-            setStroke(dp(context, 2f).toInt(), TEXT_PRIMARY)
+            setStroke(dp(context, 1.6f).toInt(), TEXT_PRIMARY)
         }
         return LayerDrawable(arrayOf(ring, fill)).apply {
             val inset = dp(context, 4.5f).toInt()
@@ -127,7 +136,7 @@ interface SceneSource {
     fun registerBackdrop(view: View)
 }
 
-/** Draws the scene behind a [GlassPanel], blurred on Android 12+, plus the glass tint. */
+/** Draws the scene behind a [GlassPanel], blurred on Android 12+. */
 class GlassBackdropView(context: Context) : View(context) {
 
     var source: SceneSource? = null
@@ -138,8 +147,9 @@ class GlassBackdropView(context: Context) : View(context) {
 
     init {
         if (blurSupported) {
-            val radius = Glass.dp(context, 26f)
-            val saturate = ColorMatrix().apply { setSaturation(1.6f) }
+            val radius = Glass.dp(context, 22f)
+            // A touch of extra saturation keeps colors behind the glass from going grey.
+            val saturate = ColorMatrix().apply { setSaturation(1.25f) }
             setRenderEffect(
                 RenderEffect.createChainEffect(
                     RenderEffect.createColorFilterEffect(ColorMatrixColorFilter(saturate)),
@@ -168,13 +178,13 @@ class GlassBackdropView(context: Context) : View(context) {
             )
             src.renderScene(canvas)
             canvas.restore()
-            canvas.drawColor(0x47141826)
         } else {
-            canvas.drawColor(0xC21A1E2B.toInt())
+            canvas.drawColor(0xD91B1F2B.toInt())
         }
     }
 }
 
+/** Frosted glass container: blurred scene + faint white gradient + thin light rim. */
 class GlassPanel @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -189,11 +199,11 @@ class GlassPanel @JvmOverloads constructor(
 
     private val backdrop = GlassBackdropView(context)
     private val rect = RectF()
-    private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val tintPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val rimPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = Glass.dp(context, 1f)
     }
-    private val sheenPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     init {
         val a = context.obtainStyledAttributes(attrs, R.styleable.GlassPanel)
@@ -226,15 +236,20 @@ class GlassPanel @JvmOverloads constructor(
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
-        borderPaint.shader = LinearGradient(
-            0f, 0f, w.toFloat(), h.toFloat(),
-            intArrayOf(0x80FFFFFF.toInt(), 0x1AFFFFFF, 0x0DFFFFFF, 0x4DFFFFFF),
-            floatArrayOf(0f, 0.35f, 0.7f, 1f),
+        // Keep the backdrop covering the panel even while its bounds are animated (no layout pass then).
+        backdrop.layout(0, 0, w, h)
+        val fh = h.toFloat()
+        tintPaint.shader = LinearGradient(
+            0f, 0f, 0f, fh,
+            intArrayOf(0x24FFFFFF, 0x12FFFFFF, 0x0AFFFFFF),
+            floatArrayOf(0f, min(1f, Glass.dp(context, 70f) / fh.coerceAtLeast(1f)), 1f),
             Shader.TileMode.CLAMP,
         )
-        sheenPaint.shader = LinearGradient(
-            0f, 0f, 0f, min(h.toFloat(), Glass.dp(context, 90f)),
-            0x1FFFFFFF, 0x00FFFFFF, Shader.TileMode.CLAMP,
+        rimPaint.shader = LinearGradient(
+            0f, 0f, w.toFloat(), fh,
+            intArrayOf(0x4DFFFFFF, 0x14FFFFFF, 0x0AFFFFFF, 0x2EFFFFFF),
+            floatArrayOf(0f, 0.4f, 0.65f, 1f),
+            Shader.TileMode.CLAMP,
         )
     }
 
@@ -242,20 +257,20 @@ class GlassPanel @JvmOverloads constructor(
         val result = super.drawChild(canvas, child, drawingTime)
         if (child === backdrop) {
             rect.set(0f, 0f, width.toFloat(), height.toFloat())
-            canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, sheenPaint)
+            canvas.drawRoundRect(rect, cornerRadiusPx, cornerRadiusPx, tintPaint)
         }
         return result
     }
 
     override fun draw(canvas: Canvas) {
         super.draw(canvas)
-        val half = borderPaint.strokeWidth / 2f
+        val half = rimPaint.strokeWidth / 2f
         rect.set(half, half, width - half, height - half)
-        canvas.drawRoundRect(rect, cornerRadiusPx - half, cornerRadiusPx - half, borderPaint)
+        canvas.drawRoundRect(rect, cornerRadiusPx - half, cornerRadiusPx - half, rimPaint)
     }
 }
 
-/** iOS-style switch. */
+/** Flat switch: translucent track that fills with the accent when on, white capsule thumb. */
 class GlassToggle(context: Context) : View(context) {
 
     var accent: Int = Color.parseColor(WallpaperPrefs.DEFAULT_ACCENT_HEX)
@@ -274,15 +289,7 @@ class GlassToggle(context: Context) : View(context) {
     private val argb = ArgbEvaluator()
     private val rect = RectF()
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val trackStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        strokeWidth = Glass.dp(context, 1f)
-        color = 0x2EFFFFFF
-    }
-    private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        setShadowLayer(Glass.dp(context, 3f), 0f, Glass.dp(context, 1f), 0x40000000)
-    }
+    private val thumbPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
 
     init {
         isClickable = true
@@ -314,20 +321,23 @@ class GlassToggle(context: Context) : View(context) {
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        setMeasuredDimension(Glass.dp(context, 51f).toInt(), Glass.dp(context, 31f).toInt())
+        setMeasuredDimension(Glass.dp(context, 54f).toInt(), Glass.dp(context, 30f).toInt())
     }
 
     override fun onDraw(canvas: Canvas) {
         val w = width.toFloat()
         val h = height.toFloat()
-        val r = h / 2f
         rect.set(0f, 0f, w, h)
         trackPaint.color = argb.evaluate(progress, 0x29FFFFFF, accent) as Int
-        canvas.drawRoundRect(rect, r, r, trackPaint)
-        if (progress < 0.99f) canvas.drawRoundRect(rect, r, r, trackStroke)
-        val thumbR = r - Glass.dp(context, 2f)
-        val cx = r + (w - 2 * r) * progress
-        canvas.drawCircle(cx, r, thumbR, thumbPaint)
+        canvas.drawRoundRect(rect, h / 2, h / 2, trackPaint)
+
+        val inset = Glass.dp(context, 3f)
+        val thumbH = h - 2 * inset
+        val thumbW = thumbH * 1.3f
+        val left = inset + (w - 2 * inset - thumbW) * progress
+        rect.set(left, inset, left + thumbW, inset + thumbH)
+        thumbPaint.alpha = (0xE6 + (0xFF - 0xE6) * progress).toInt()
+        canvas.drawRoundRect(rect, thumbH / 2, thumbH / 2, thumbPaint)
     }
 
     override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
@@ -338,16 +348,10 @@ class GlassToggle(context: Context) : View(context) {
     }
 }
 
-/** Capsule segmented control with a sliding accent pill. */
+/** Flat capsule segmented control: translucent track, a lighter glass pill slides to the selection. */
 class GlassSegmentedControl(context: Context) : View(context) {
 
     var options: List<String> = emptyList()
-        set(value) {
-            field = value
-            invalidate()
-        }
-
-    var accent: Int = Color.parseColor(WallpaperPrefs.DEFAULT_ACCENT_HEX)
         set(value) {
             field = value
             invalidate()
@@ -363,18 +367,18 @@ class GlassSegmentedControl(context: Context) : View(context) {
     private val argb = ArgbEvaluator()
     private val inset = Glass.dp(context, 3f)
     private val rect = RectF()
-    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x1AFFFFFF }
-    private val trackStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Glass.CONTROL_FILL }
+    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x2EFFFFFF }
+    private val pillRim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
-        strokeWidth = Glass.dp(context, 1f)
+        strokeWidth = Glass.dp(context, 0.8f)
         color = 0x24FFFFFF
     }
-    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = Glass.medium
         textAlign = Paint.Align.CENTER
     }
-    private val baseTextSize = 13f * context.resources.displayMetrics.scaledDensity
+    private val baseTextSize = 13.5f * context.resources.displayMetrics.scaledDensity
 
     init {
         isClickable = true
@@ -413,17 +417,13 @@ class GlassSegmentedControl(context: Context) : View(context) {
         val h = height.toFloat()
         rect.set(0f, 0f, w, h)
         canvas.drawRoundRect(rect, h / 2, h / 2, trackPaint)
-        canvas.drawRoundRect(rect, h / 2, h / 2, trackStroke)
 
         val segW = (w - 2 * inset) / n
         val pillLeft = inset + pillPosition * segW
         rect.set(pillLeft, inset, pillLeft + segW, h - inset)
-        pillPaint.shader = LinearGradient(
-            0f, rect.top, 0f, rect.bottom,
-            Glass.lighten(accent, 0.30f), accent, Shader.TileMode.CLAMP,
-        )
         val pr = (h - 2 * inset) / 2
         canvas.drawRoundRect(rect, pr, pr, pillPaint)
+        canvas.drawRoundRect(rect, pr, pr, pillRim)
 
         for ((i, label) in options.withIndex()) {
             textPaint.textSize = baseTextSize
@@ -431,7 +431,7 @@ class GlassSegmentedControl(context: Context) : View(context) {
             val measured = textPaint.measureText(label)
             if (measured > maxW) textPaint.textSize = baseTextSize * maxW / measured
             val closeness = (1f - abs(i - pillPosition)).coerceIn(0f, 1f)
-            textPaint.color = argb.evaluate(closeness, Glass.TEXT_PRIMARY, Glass.TEXT_ON_ACCENT) as Int
+            textPaint.color = argb.evaluate(closeness, Glass.TEXT_SECONDARY, Glass.TEXT_PRIMARY) as Int
             val cx = inset + segW * (i + 0.5f)
             val cy = h / 2 - (textPaint.descent() + textPaint.ascent()) / 2
             canvas.drawText(label, cx, cy, textPaint)

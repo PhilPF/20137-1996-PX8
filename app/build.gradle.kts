@@ -138,6 +138,18 @@ android {
         getByName("main").java.srcDir(asteroidElementsOutputDir)
     }
 
+    // A fixed debug key, committed to the repo. Without it every CI run (a fresh machine)
+    // generates a new random debug key, and Android refuses to install a build over one signed
+    // with a different key (INSTALL_FAILED_UPDATE_INCOMPATIBLE).
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

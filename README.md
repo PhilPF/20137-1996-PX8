@@ -1,6 +1,6 @@
 # 20137-1996-PX8 — Android Live Wallpaper
 
-A native Android live wallpaper showing the Sun, all 8 planets, and near-Earth
+A native Android live wallpaper showing the Sun, all 8 planets, and the
 asteroid **(20137) Angeljorba**, animated with real Keplerian orbital mechanics
 (JPL's 3000 BC–3000 AD planetary elements, JPL Horizons element tables for the
 asteroid, Newton-Raphson Kepler solve, full 3D ecliptic projection).
@@ -58,8 +58,39 @@ saved view" glides back to it. The wallpaper and widget always show the current
 camera, i.e. whatever view you leave the app on.
 
 The accent color tints the asteroid *and* the app's own controls, so they
-always match. All panels fade while you drag the scene, so they don't hide
-what you're positioning.
+always match.
+
+**Touch.** Dragging rotates and pinching zooms; a plain tap does something
+else. A tap on empty space closes the options sheet, so dragging the view while
+a sheet is open still works. A tap on the Sun, a planet, Angeljorba or an added
+object opens its **info card** (below the top capsule; ✕, Back or a tap on
+empty space closes it) and rings the body in the preview. The card updates live
+with the simulated time: distance from the Sun and from Earth (with light
+travel time), orbital speed (vis-viva), orbital period (Kepler's third law),
+eccentricity and tilt, radius where known, and where the data comes from.
+Angeljorba's card gives its orbit class computed from its elements. With a
+perihelion of 1.59 AU it is a Mars-crosser; earlier versions of this app called
+it near-Earth, which needs a perihelion under 1.3 AU.
+
+**Getting the panels out of the way.** All panels fade while you drag or pinch
+the scene, and while you drag the body-size slider, so you can see the bodies
+being resized. Changes that move things around (distance scale, proportional
+sizes, "Go to saved view") fade them briefly too, then bring them back.
+
+**More objects (experimental, Data tab).** Off unless you add something. Add
+from presets (Pluto, Ceres, Vesta, Pallas, 433 Eros, 99942 Apophis, Halley's
+Comet) or type any JPL name, number or designation (e.g. `3200`, `Phaethon`,
+`2P/Encke`, `C/1995 O1`). Each is fetched exactly like Angeljorba: a JPL
+Horizons element table (the `COMMAND` is the object; comets use `DES=…;CAP;`
+for the apparition nearest now), then an SBDB single epoch as fallback, each
+direct and then through the same relays. Unknown or ambiguous names stop early
+instead of retrying every relay. Each table is stored in its own file
+(`extra_<id>.csv`), so Angeljorba's data is untouched. Added objects get a thin
+orbit line and a dot (comets also get a short tail pointing away from the Sun
+inside ~5 AU), are depth-sorted with everything else and appear on the
+wallpaper and widget too. If an orbit reaches beyond Neptune, the view widens to
+fit it (up to 60 AU). Only bodies orbiting the Sun are supported so far (see
+"Next steps").
 
 ## Home-screen widget
 
@@ -174,6 +205,9 @@ differs.
 - `GlassUi.kt` — the glass panel, backdrop blur, switch, segmented control and
   buttons.
 - `ViewProjection.kt` — the camera projection and depth (plain Kotlin, tested).
+- `BodyFacts.kt` — the info-card numbers and formatting (plain Kotlin, tested).
+- `ExtraObjects.kt` — presets, parsing typed designations, storage format, orbit
+  classes and view fitting for added objects (plain Kotlin, tested).
 - `app/src/main/java/com/philpf/solarsystemwallpaper/SolarSystemRenderer.kt` — the
   Canvas2D-style drawing code (ported from the reference `draw()`), shared by the
   live wallpaper and the in-app preview so both stay pixel-identical.
@@ -252,3 +286,20 @@ screen and works even on OEM launchers whose own wallpaper picker doesn't
 surface a "Live wallpapers" category. (The widget is also in the launcher's
 widget list, and the OS picker at **Settings > Wallpaper > Live wallpapers**,
 where available, works too.)
+
+## Next steps (not built yet)
+
+Ideas for the exploratory direction, in the order they build on each other:
+
+1. **Moons.** Horizons can give a moon's elements relative to its planet
+   (`CENTER='500@399'` for the Moon around Earth). They would be drawn around
+   the planet's current position. At solar-system scale moons sit almost on top
+   of their planet, so this needs step 2 to be useful.
+2. **Re-centering.** Let the info card offer "Center here": subtract the chosen
+   body's position (or a barycenter, e.g. Horizons `3` for Earth–Moon) from
+   everything, with its own zoom range and distance scale, so the Earth–Moon
+   system or Jupiter's moons can fill the screen.
+3. **Rings and dust.** Saturn's rings as an ellipse drawn in the planet's
+   equatorial plane; the main asteroid belt and Kuiper belt as faint bands
+   between their usual distances.
+

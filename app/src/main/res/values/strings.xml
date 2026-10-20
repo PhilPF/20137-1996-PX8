@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">20137-1996-PX8</string>
-    <string name="wallpaper_description">Solar system + near-Earth asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
+    <string name="wallpaper_description">The solar system and asteroid (20137) Angeljorba, tracked with real orbital mechanics.</string>
     <string name="widget_description">Live snapshot of the solar system + asteroid tracker, resizable to any size.</string>
 
     <string name="set_wallpaper_fallback">Couldn\'t open the wallpaper picker directly. Go to Settings, then Wallpaper, then Live wallpapers, and choose this app.</string>
@@ -64,6 +64,26 @@
     <string name="data_never">Never</string>
     <string name="refresh_data">Refresh from JPL</string>
     <string name="data_explainer">The asteroid follows a table of orbital elements from JPL Horizons, which already includes the pull of the planets. Planets use JPL\'s long-term formulas. Outside the table\'s span, and for planets beyond 3000 AD, positions are extrapolated and the date is marked ≈.</string>
+
+    <string name="extras_caption">More objects · experimental</string>
+    <string name="extras_note">Adds dwarf planets, asteroids or comets that orbit the Sun, with orbits from JPL like Angeljorba\'s. Far objects widen the view. They also appear on the wallpaper and widget.</string>
+    <string name="add_object">Add object…</string>
+    <string name="add_object_title">Add an object</string>
+    <string name="add_object_other">Other (JPL name or number)…</string>
+    <string name="add_object_hint">e.g. 3200, Phaethon, 2P/Encke</string>
+    <string name="add_object_invalid">Type a name, number or designation (no quotes or semicolons).</string>
+    <string name="add_object_limit">You can add up to %1$d objects.</string>
+    <string name="add">Add</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="extra_fetching">Fetching…</string>
+    <string name="extra_failed">Not found · tap</string>
+    <string name="extra_no_data">No data yet</string>
+    <string name="extra_epochs">%1$d epochs</string>
+    <string name="extra_single">Single epoch</string>
+    <string name="extra_refresh">Refresh from JPL</string>
+    <string name="extra_remove">Remove</string>
+    <string name="info_no_data">No orbit data yet. Open the Data tab to retry.</string>
 
     <string name="status_loading">Fetching from JPL…</string>
     <string name="status_ok">Live JPL data</string>

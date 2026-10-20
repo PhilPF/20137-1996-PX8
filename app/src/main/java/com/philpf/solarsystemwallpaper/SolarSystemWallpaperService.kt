@@ -115,7 +115,7 @@ class SolarSystemWallpaperService : WallpaperService() {
             val style = prefs.renderStyle()
             renderer.render(
                 canvas, canvas.width.toFloat(), canvas.height.toFloat(),
-                prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt,
+                prefs.simulatedMillis(), camera, style, prefs::asteroidOrbitAt, prefs.renderExtras(),
             )
         }
     }

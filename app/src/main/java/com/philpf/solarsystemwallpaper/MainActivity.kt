@@ -14,6 +14,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.InputType
 import android.text.TextUtils
 import android.text.style.ForegroundColorSpan
 import android.transition.ChangeBounds
@@ -24,10 +25,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
@@ -95,17 +98,35 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dataSourceValue: TextView
     private lateinit var dataUpdatedValue: TextView
 
+    private lateinit var infoCard: GlassPanel
+    private lateinit var infoDot: View
+    private lateinit var infoTitle: TextView
+    private lateinit var infoSubtitle: TextView
+    private lateinit var infoRows: LinearLayout
+    /** Body whose info card is showing (renderer ids), or null. */
+    private var infoBodyId: String? = null
+
+    private lateinit var extrasGroup: LinearLayout
+    private val extrasFetching = HashSet<String>()
+    private val extrasFailed = HashSet<String>()
+    private val extrasAccentLabels = ArrayList<TextView>()
+
     private var sheetOpen = false
     private var fetchInFlight = false
+    private var sceneGestureActive = false
+    private val endPeek = Runnable { if (!sceneGestureActive) fadeChrome(false) }
     private val handler = Handler(Looper.getMainLooper())
     private val clockTick = object : Runnable {
         override fun run() {
             refreshDate()
+            refreshInfo()
             handler.postDelayed(this, 250)
         }
     }
     private val backCallback = object : OnBackPressedCallback(false) {
-        override fun handleOnBackPressed() = setSheetOpen(false)
+        override fun handleOnBackPressed() {
+            if (sheetOpen) setSheetOpen(false) else hideInfo()
+        }
     }
 
     private val dateFormat = SimpleDateFormat("EEE d MMM yyyy · HH:mm", Locale.getDefault())
@@ -152,7 +173,29 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.hudContent).setOnClickListener {
             if (sheetOpen && currentTab == TAB_DATA) setSheetOpen(false) else openTab(TAB_DATA)
         }
-        previewView.onInteraction = { active -> fadeChrome(active) }
+        infoCard = findViewById(R.id.infoCard)
+        infoDot = findViewById(R.id.infoDot)
+        infoTitle = findViewById(R.id.infoTitle)
+        infoSubtitle = findViewById(R.id.infoSubtitle)
+        infoRows = findViewById(R.id.infoRows)
+        infoCard.attachScene(previewView)
+        findViewById<View>(R.id.infoClose).setOnClickListener { hideInfo() }
+        hudPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> root.post { positionSheet() } }
+
+        previewView.onInteraction = { active ->
+            sceneGestureActive = active
+            handler.removeCallbacks(endPeek)
+            fadeChrome(active)
+        }
+        // A tap (not a drag) on a body opens its card; on empty space it closes the menu, or
+        // the card if the menu is already closed.
+        previewView.onTap = { _, _, bodyId ->
+            when {
+                bodyId != null -> showInfo(bodyId)
+                sheetOpen -> setSheetOpen(false)
+                else -> hideInfo()
+            }
+        }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         applyWindowInsets()
@@ -161,6 +204,7 @@ class MainActivity : AppCompatActivity() {
 
         refreshAll()
         if (shouldAutoFetch()) fetchAsteroidOrbit()
+        prefs.extraObjects.filter { ExtraEphemerides.store(it.id).snapshot(this) == null }.forEach { fetchExtra(it) }
     }
 
     override fun onResume() {
@@ -203,6 +247,7 @@ class MainActivity : AppCompatActivity() {
                 marginStart = dp(12f) + bars.left
                 marginEnd = dp(12f) + bars.right
             }
+            (infoCard.layoutParams as ViewGroup.MarginLayoutParams).marginStart = dp(16f) + bars.left
             hudPanel.requestLayout()
             tabBarPanel.requestLayout()
             root.post { positionSheet() }
@@ -223,13 +268,24 @@ class MainActivity : AppCompatActivity() {
         val hudBottom = (hudPanel.layoutParams as ViewGroup.MarginLayoutParams).topMargin + hudPanel.height
         val available = min(root.height - bottom - hudBottom - dp(12f), (root.height * 0.62f).toInt())
         optionsScroll.maxHeightPx = max(dp(160f), available)
+
+        // Info card: just under the top capsule, at most 300dp wide.
+        val cardLp = infoCard.layoutParams as FrameLayout.LayoutParams
+        val cardTop = hudBottom + dp(8f)
+        val cardWidth = min(dp(300f), root.width - cardLp.marginStart - dp(16f))
+        if (cardLp.topMargin != cardTop || cardLp.width != cardWidth) {
+            cardLp.topMargin = cardTop
+            cardLp.width = cardWidth
+            infoCard.layoutParams = cardLp
+        }
     }
 
     private fun setSheetOpen(open: Boolean) {
         if (open == sheetOpen) return
         sheetOpen = open
-        backCallback.isEnabled = open
+        backCallback.isEnabled = open || infoBodyId != null
         tabBar.select(if (open) currentTab else -1, animate = true)
+        if (open) hideInfo()
         optionsSheet.animate().cancel()
         if (open) {
             positionSheet()
@@ -273,12 +329,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Fades all floating panels nearly out (true) or back in (false), so the scene can be seen. */
     private fun fadeChrome(active: Boolean) {
         val target = if (active) 0.15f else 1f
         val duration = if (active) 160L else 320L
         hudPanel.animate().alpha(target).setDuration(duration).start()
         tabBarPanel.animate().alpha(target).setDuration(duration).start()
         if (sheetOpen) optionsSheet.animate().alpha(target).translationY(0f).setDuration(duration).start()
+        if (infoBodyId != null) infoCard.animate().alpha(target).setDuration(duration).start()
+    }
+
+    /** Briefly fades the panels after a change that moves things in the scene, to show the result. */
+    private fun peek(durationMs: Long = 1400) {
+        handler.removeCallbacks(endPeek)
+        fadeChrome(true)
+        handler.postDelayed(endPeek, durationMs)
     }
 
     // ---- Building the options -----------------------------------------------------------------
@@ -375,6 +440,11 @@ class MainActivity : AppCompatActivity() {
                 previewView.refreshNow()
             }
             onRelease = { v -> prefs.setBodyScale(sliderToScale(v), redrawWidgets = true) }
+            // Fade the panels while dragging, so the bodies being resized can be seen.
+            onTrackingChanged = { tracking ->
+                handler.removeCallbacks(endPeek)
+                fadeChrome(tracking)
+            }
         }
         sizes.addView(sizeSlider, matchWrap().apply {
             marginStart = dp(10f)
@@ -384,6 +454,7 @@ class MainActivity : AppCompatActivity() {
         divider(sizes)
         toggleRow(sizes, R.string.toggle_relative_sizes, R.string.toggle_relative_sizes_note, { prefs.relativeSizes }) {
             prefs.setRelativeSizes(it)
+            peek()
         }
 
         val rows = group(page, top = 14f)
@@ -403,12 +474,16 @@ class MainActivity : AppCompatActivity() {
         ) { idx ->
             prefs.setDistanceScale(scales[idx])
             refreshAll()
+            peek()
         }
         distanceNote = footnote(page, R.string.scale_sqrt_note)
 
         caption(page, R.string.camera_caption)
         val camera = group(page)
-        goHomeLabel = actionRow(camera, getString(R.string.go_to_saved_view)) { previewView.goToHomeView() }
+        goHomeLabel = actionRow(camera, getString(R.string.go_to_saved_view)) {
+            previewView.goToHomeView()
+            peek(900)
+        }
         divider(camera)
         actionRow(camera, getString(R.string.save_view)) {
             previewView.saveCurrentAsHomeView()
@@ -466,6 +541,11 @@ class MainActivity : AppCompatActivity() {
 
         page.addView(secondaryButton(getString(R.string.refresh_data)) { fetchAsteroidOrbit() }, matchWrap(top = 14f))
         footnote(page, R.string.data_explainer)
+
+        caption(page, R.string.extras_caption, top = 20f)
+        extrasGroup = group(page)
+        footnote(page, R.string.extras_note)
+        rebuildExtras()
     }
 
     // ---- Building blocks ----------------------------------------------------------------------
@@ -721,6 +801,261 @@ class MainActivity : AppCompatActivity() {
         dataStatusValue.text = message
         dataSourceValue.text = snapshot?.label ?: getString(R.string.data_builtin_source)
         dataUpdatedValue.text = snapshot?.let { updatedFormat.format(Date(it.modified)) } ?: getString(R.string.data_never)
+    }
+
+    // ---- Info card ----------------------------------------------------------------------------
+
+    private fun showInfo(bodyId: String) {
+        if (sheetOpen) setSheetOpen(false)
+        val wasHidden = infoBodyId == null
+        infoBodyId = bodyId
+        previewView.highlightId = bodyId
+        backCallback.isEnabled = true
+        infoRows.removeAllViews()
+        refreshInfo()
+        if (wasHidden) {
+            infoCard.animate().cancel()
+            infoCard.visibility = View.VISIBLE
+            infoCard.alpha = 0f
+            infoCard.translationY = -dp(12f).toFloat()
+            infoCard.animate().alpha(1f).translationY(0f).setDuration(220)
+                .setInterpolator(DecelerateInterpolator(1.6f)).start()
+        }
+    }
+
+    private fun hideInfo() {
+        if (infoBodyId == null) return
+        infoBodyId = null
+        previewView.highlightId = null
+        backCallback.isEnabled = sheetOpen
+        infoCard.animate().cancel()
+        infoCard.animate().alpha(0f).translationY(-dp(12f).toFloat()).setDuration(160)
+            .withEndAction { infoCard.visibility = View.GONE }.start()
+    }
+
+    /** Recomputes the open card for the instant being shown (called on every clock tick). */
+    private fun refreshInfo() {
+        val id = infoBodyId ?: return
+        val jd = jdFromUnixMillis(previewView.frameSimMillis)
+        val (info, color) = describeBody(id, jd) ?: run {
+            hideInfo()
+            return
+        }
+        infoDot.background = Glass.dot(color)
+        if (infoTitle.text.toString() != info.title) infoTitle.text = info.title
+        if (infoSubtitle.text.toString() != info.subtitle) infoSubtitle.text = info.subtitle
+        if (infoRows.childCount != info.rows.size) {
+            infoRows.removeAllViews()
+            repeat(info.rows.size) { infoRows.addView(infoRow(), matchWrap(top = if (it == 0) 0f else 6f)) }
+        }
+        for ((i, rowData) in info.rows.withIndex()) {
+            val rowView = infoRows.getChildAt(i) as LinearLayout
+            val label = rowView.getChildAt(0) as TextView
+            val value = rowView.getChildAt(1) as TextView
+            if (label.text.toString() != rowData.first) label.text = rowData.first
+            if (value.text.toString() != rowData.second) value.text = rowData.second
+        }
+    }
+
+    private fun infoRow(): LinearLayout = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        addView(
+            TextView(this@MainActivity).apply {
+                setTextColor(Glass.TEXT_SECONDARY)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12.5f)
+            },
+            LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                .apply { marginEnd = dp(12f) },
+        )
+        addView(
+            TextView(this@MainActivity).apply {
+                setTextColor(Glass.TEXT_PRIMARY)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+                gravity = Gravity.END
+                fontFeatureSettings = "tnum"
+            },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
+        )
+    }
+
+    /** The card contents and dot color for a renderer body id, or null if it no longer exists. */
+    private fun describeBody(id: String, jd: Double): Pair<BodyInfo, Int>? {
+        val t = centuriesSinceJ2000(jd)
+        val earthEl = planetElementsAt(PLANETS.first { it.key == "earth" }, t)
+        val earth = positionFromElements(earthEl.a, earthEl.e, earthEl.i, earthEl.om, earthEl.w, earthEl.M)
+        val approx = if (isWithinPlanetTheory(t)) emptyList() else listOf("Accuracy" to "≈ outside 3000 BC–3000 AD")
+        when {
+            id == SolarSystemRenderer.ID_SUN -> return BodyFacts.sun(earth) to Color.parseColor("#ffe9a8")
+            id == SolarSystemRenderer.ID_ASTEROID -> {
+                val o = prefs.asteroidOrbitAt(jd)
+                val snapshot = AsteroidEphemeris.snapshot(this)
+                val source = snapshot?.label?.substringBefore(" · ") ?: getString(R.string.data_builtin_source)
+                val reliable = if (AsteroidEphemeris.isReliableAt(this, jd)) emptyList() else listOf("Accuracy" to "≈ extrapolated")
+                val info = BodyFacts.orbiting(
+                    "(20137) Angeljorba", "${ExtraObjects.classify(o.a, o.e)} · 1996 PX8",
+                    asteroidPositionAt(o, jd), earth, o.a, o.e, o.i, null,
+                    listOf("Data" to source) + reliable,
+                )
+                return info to currentAccent()
+            }
+            id.startsWith(SolarSystemRenderer.EXTRA_PREFIX) -> {
+                val obj = prefs.extraObjects.firstOrNull { it.id == id.removePrefix(SolarSystemRenderer.EXTRA_PREFIX) } ?: return null
+                val color = parseColorOr(obj.colorHex, Color.LTGRAY)
+                val store = ExtraEphemerides.store(obj.id)
+                val o = store.orbitAtOrNull(this, jd)
+                    ?: return BodyInfo(obj.name, getString(R.string.info_no_data), emptyList()) to color
+                val subtitle = when (obj.kind) {
+                    ExtraKind.DWARF_PLANET -> "Dwarf planet"
+                    ExtraKind.COMET -> "Comet"
+                    ExtraKind.ASTEROID -> ExtraObjects.classify(o.a, o.e)
+                }
+                val source = store.snapshot(this)?.label?.substringBefore(" · ") ?: "JPL"
+                val reliable = if (store.isReliableAt(this, jd)) emptyList() else listOf("Accuracy" to "≈ extrapolated")
+                val info = BodyFacts.orbiting(
+                    obj.name, subtitle, asteroidPositionAt(o, jd), earth, o.a, o.e, o.i, obj.radiusKm,
+                    listOf("Data" to source) + reliable,
+                )
+                return info to color
+            }
+            else -> {
+                val planet = PLANETS.firstOrNull { it.key == id } ?: return null
+                val el = planetElementsAt(planet, t)
+                val pos = positionFromElements(el.a, el.e, el.i, el.om, el.w, el.M)
+                val info = BodyFacts.orbiting(
+                    planet.label, BodyFacts.planetSubtitle(planet.key), pos,
+                    if (planet.key == "earth") null else earth,
+                    el.a, el.e, el.i, BodyFacts.PLANET_RADIUS_KM[planet.key],
+                    listOf("Data" to "JPL planetary formulas") + approx,
+                )
+                return info to parseColorOr(planet.colorHex, Color.GRAY)
+            }
+        }
+    }
+
+    private fun parseColorOr(hex: String, fallback: Int): Int =
+        try {
+            Color.parseColor(hex)
+        } catch (_: IllegalArgumentException) {
+            fallback
+        }
+
+    // ---- Extra objects (experimental) ---------------------------------------------------------
+
+    private fun rebuildExtras() {
+        accentTexts.removeAll(extrasAccentLabels)
+        extrasAccentLabels.clear()
+        extrasGroup.removeAllViews()
+        val objects = prefs.extraObjects
+        for (obj in objects) {
+            val r = row(extrasGroup) { extraActions(obj) }
+            r.addView(
+                View(this).apply { background = Glass.dot(parseColorOr(obj.colorHex, Color.LTGRAY)) },
+                LinearLayout.LayoutParams(dp(8f), dp(8f)).apply { marginEnd = dp(10f) },
+            )
+            r.addView(rowTitle(obj.name), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            r.addView(valueText().apply { text = extraStatus(obj) })
+            divider(extrasGroup)
+        }
+        if (objects.size < ExtraObjects.MAX_OBJECTS) {
+            extrasAccentLabels += actionRow(extrasGroup, getString(R.string.add_object)) { showAddObjectDialog() }
+        } else {
+            row(extrasGroup).addView(
+                rowTitle(getString(R.string.add_object_limit, ExtraObjects.MAX_OBJECTS)).apply { setTextColor(Glass.TEXT_SECONDARY) },
+            )
+        }
+        accentTexts.forEach { it.setTextColor(currentAccent()) }
+    }
+
+    private fun extraStatus(obj: ExtraObject): String {
+        if (obj.id in extrasFetching) return getString(R.string.extra_fetching)
+        val snapshot = ExtraEphemerides.store(obj.id).snapshot(this)
+        return when {
+            snapshot != null && snapshot.isTable -> getString(R.string.extra_epochs, snapshot.rows.size)
+            snapshot != null -> getString(R.string.extra_single)
+            obj.id in extrasFailed -> getString(R.string.extra_failed)
+            else -> getString(R.string.extra_no_data)
+        }
+    }
+
+    private fun showAddObjectDialog() {
+        val existing = prefs.extraObjects
+        val available = ExtraObjects.presets.filter { p -> existing.none { it.id == p.id } }
+        val labels = available.map { it.name } + getString(R.string.add_object_other)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_object_title)
+            .setItems(labels.toTypedArray()) { _, which ->
+                if (which < available.size) addExtra(available[which]) else showCustomObjectDialog()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun showCustomObjectDialog() {
+        val input = EditText(this).apply {
+            hint = getString(R.string.add_object_hint)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            setSingleLine()
+        }
+        val container = FrameLayout(this).apply {
+            setPadding(dp(20f), dp(8f), dp(20f), 0)
+            addView(input)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.add_object_title)
+            .setView(container)
+            .setPositiveButton(R.string.add) { _, _ ->
+                val obj = ExtraObjects.custom(input.text.toString(), prefs.extraObjects)
+                if (obj == null) {
+                    Toast.makeText(this, getString(R.string.add_object_invalid), Toast.LENGTH_LONG).show()
+                } else {
+                    addExtra(obj)
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun addExtra(obj: ExtraObject) {
+        prefs.addExtraObject(obj)
+        rebuildExtras()
+        fetchExtra(obj)
+    }
+
+    private fun extraActions(obj: ExtraObject) {
+        AlertDialog.Builder(this)
+            .setTitle(obj.name)
+            .setItems(arrayOf(getString(R.string.extra_refresh), getString(R.string.extra_remove))) { _, which ->
+                if (which == 0) {
+                    fetchExtra(obj)
+                } else {
+                    if (infoBodyId == SolarSystemRenderer.EXTRA_PREFIX + obj.id) hideInfo()
+                    prefs.removeExtraObject(obj.id)
+                    rebuildExtras()
+                    previewView.refreshNow()
+                }
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    private fun fetchExtra(obj: ExtraObject) {
+        if (!extrasFetching.add(obj.id)) return
+        extrasFailed.remove(obj.id)
+        rebuildExtras()
+        Thread {
+            val result = AsteroidOrbitFetcher.fetch(FetchTarget(obj.horizonsCommand, obj.sbdbQuery))
+            if (result is AsteroidFetchResult.Success) {
+                // Removed while fetching: don't bring it back.
+                if (prefs.extraObjects.any { it.id == obj.id }) prefs.setExtraObjectData(obj.id, result.rows, result.label, result.name)
+            }
+            runOnUiThread {
+                extrasFetching.remove(obj.id)
+                if (result is AsteroidFetchResult.Failure) extrasFailed.add(obj.id)
+                if (isDestroyed) return@runOnUiThread
+                rebuildExtras()
+                previewView.refreshNow()
+            }
+        }.start()
     }
 
     // ---- Actions ------------------------------------------------------------------------------

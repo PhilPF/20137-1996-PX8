@@ -513,6 +513,9 @@ class GlassSlider(context: Context) : View(context) {
     var onChange: ((Float) -> Unit)? = null
     var onRelease: ((Float) -> Unit)? = null
 
+    /** True when a finger starts dragging the slider, false when it lifts. */
+    var onTrackingChanged: ((Boolean) -> Unit)? = null
+
     private val rect = RectF()
     private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x29FFFFFF }
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -556,6 +559,7 @@ class GlassSlider(context: Context) : View(context) {
             MotionEvent.ACTION_DOWN -> {
                 // Keep the surrounding ScrollView from stealing horizontal drags.
                 parent?.requestDisallowInterceptTouchEvent(true)
+                onTrackingChanged?.invoke(true)
                 updateValue(valueAt(event.x))
                 onChange?.invoke(value)
                 return true
@@ -569,6 +573,7 @@ class GlassSlider(context: Context) : View(context) {
                 parent?.requestDisallowInterceptTouchEvent(false)
                 if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
                 onRelease?.invoke(value)
+                onTrackingChanged?.invoke(false)
                 return true
             }
         }

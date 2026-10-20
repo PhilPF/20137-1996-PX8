@@ -7,7 +7,9 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.animation.DecelerateInterpolator
+import kotlin.math.hypot
 
 /**
  * Interactive live preview backing the app's main screen: single-finger drag rotates azimuth
@@ -40,8 +42,25 @@ class SolarSystemPreviewView @JvmOverloads constructor(
     var frameSimMillis: Long = System.currentTimeMillis()
         private set
 
-    /** Called with true when a drag/pinch starts and false when it ends. */
+    /** Called with true when a drag/pinch starts and false when it ends (not for plain taps). */
     var onInteraction: ((Boolean) -> Unit)? = null
+
+    /** A tap (no drag or pinch) at view coordinates, with the id of the body under it, if any. */
+    var onTap: ((x: Float, y: Float, bodyId: String?) -> Unit)? = null
+
+    /** Body to ring in the preview (the one whose info card is open); not shown on the wallpaper. */
+    var highlightId: String? = null
+        set(value) {
+            field = value
+            invalidateFrame()
+        }
+
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var downTime = 0L
+    /** True once the gesture moved past the touch slop or became a pinch: it's no longer a tap. */
+    private var gestureActive = false
 
     private var cameraAnimator: ValueAnimator? = null
     private var lastX = 0f
@@ -84,7 +103,10 @@ class SolarSystemPreviewView @JvmOverloads constructor(
     override fun renderScene(canvas: Canvas) {
         val style = prefs.renderStyle()
         val camera = SolarSystemRenderer.Camera(azimuthDeg, tiltDeg, zoom)
-        renderer.render(canvas, width.toFloat(), height.toFloat(), frameSimMillis, camera, style, prefs::asteroidOrbitAt)
+        renderer.render(
+            canvas, width.toFloat(), height.toFloat(), frameSimMillis, camera, style, prefs::asteroidOrbitAt,
+            prefs.renderExtras(), highlightId,
+        )
     }
 
     private fun invalidateFrame() {
@@ -146,28 +168,42 @@ class SolarSystemPreviewView @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
+    private fun startGesture() {
+        if (gestureActive) return
+        gestureActive = true
+        onInteraction?.invoke(true)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
+        if (scaleDetector.isInProgress) startGesture()
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 cameraAnimator?.cancel()
                 lastX = event.x
                 lastY = event.y
+                downX = event.x
+                downY = event.y
+                downTime = event.eventTime
                 dragging = true
-                onInteraction?.invoke(true)
+                gestureActive = false
             }
             MotionEvent.ACTION_MOVE -> {
-                if (dragging && event.pointerCount == 1 && !scaleDetector.isInProgress) {
+                if (!gestureActive && hypot(event.x - downX, event.y - downY) > touchSlop) startGesture()
+                if (gestureActive && dragging && event.pointerCount == 1 && !scaleDetector.isInProgress) {
                     val dx = event.x - lastX
                     val dy = event.y - lastY
-                    lastX = event.x
-                    lastY = event.y
                     azimuthDeg += dx * 0.35
                     tiltDeg = (tiltDeg - dy * 0.25).coerceIn(0.0, 85.0)
                     invalidateFrame()
                 }
+                lastX = event.x
+                lastY = event.y
             }
-            MotionEvent.ACTION_POINTER_DOWN -> dragging = false
+            MotionEvent.ACTION_POINTER_DOWN -> {
+                dragging = false
+                startGesture()
+            }
             MotionEvent.ACTION_POINTER_UP -> {
                 // The finger that stays down becomes the drag pointer again.
                 val remaining = if (event.actionIndex == 0) 1 else 0
@@ -175,14 +211,31 @@ class SolarSystemPreviewView @JvmOverloads constructor(
                 lastY = event.getY(remaining)
                 dragging = true
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_UP -> {
                 dragging = false
-                saveCamera()
-                onInteraction?.invoke(false)
+                if (gestureActive) {
+                    saveCamera()
+                    gestureActive = false
+                    onInteraction?.invoke(false)
+                } else if (event.eventTime - downTime < ViewConfiguration.getLongPressTimeout()) {
+                    performClick()
+                    val slop = resources.displayMetrics.density * 14f
+                    onTap?.invoke(event.x, event.y, renderer.bodyAt(event.x, event.y, slop))
+                }
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                dragging = false
+                if (gestureActive) {
+                    saveCamera()
+                    gestureActive = false
+                    onInteraction?.invoke(false)
+                }
             }
         }
         return true
     }
+
+    override fun performClick(): Boolean = super.performClick()
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)

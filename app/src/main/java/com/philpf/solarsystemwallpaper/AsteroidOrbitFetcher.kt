@@ -7,13 +7,21 @@ import java.net.URI
 import java.net.URLEncoder
 
 sealed class AsteroidFetchResult {
-    data class Success(val rows: List<AsteroidOrbit>, val label: String) : AsteroidFetchResult()
+    /** [name] is JPL's name for the target, when the response included one. */
+    data class Success(val rows: List<AsteroidOrbit>, val label: String, val name: String? = null) : AsteroidFetchResult()
     data class Failure(val reason: String) : AsteroidFetchResult()
 }
 
+/** What to ask JPL for: a Horizons COMMAND and an SBDB search string. */
+data class FetchTarget(val horizonsCommand: String, val sbdbQuery: String) {
+    companion object {
+        val ANGELJORBA = FetchTarget("20137;", "20137")
+    }
+}
+
 /**
- * Fetches real orbital elements for (20137) 1996 PX8 Angeljorba. Must be called off the main
- * thread.
+ * Fetches real orbital elements for (20137) 1996 PX8 Angeljorba, or any other body orbiting the
+ * Sun ([FetchTarget]). Must be called off the main thread.
  *
  * 1. **JPL Horizons element table** (preferred): osculating elements sampled every few months
  *    across centuries, already integrated by JPL with planetary perturbations. The renderer
@@ -28,8 +36,10 @@ sealed class AsteroidFetchResult {
  */
 object AsteroidOrbitFetcher {
 
-    private const val SBDB = "https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=20137&full-prec=1"
+    private const val SBDB = "https://ssd-api.jpl.nasa.gov/sbdb.api"
     private const val HORIZONS = "https://ssd.jpl.nasa.gov/api/horizons.api"
+
+    private val NOT_A_SINGLE_MATCH = listOf("No matches found", "Matching small-bodies", "Multiple major-bodies match")
 
     private data class Span(val start: String, val stop: String, val step: String, val label: String)
 
@@ -39,10 +49,10 @@ object AsteroidOrbitFetcher {
         Span("1950-01-01", "2150-01-01", "30 d", "1950–2150"),
     )
 
-    fun fetch(): AsteroidFetchResult {
-        fetchHorizonsTable()?.let { return it }
-        fetchSbdbSingle()?.let { return it }
-        return AsteroidFetchResult.Failure("JPL Horizons and SBDB unreachable (network/relays/timeout)")
+    fun fetch(target: FetchTarget = FetchTarget.ANGELJORBA): AsteroidFetchResult {
+        fetchHorizonsTable(target)?.let { return it }
+        fetchSbdbSingle(target)?.let { return it }
+        return AsteroidFetchResult.Failure("JPL Horizons and SBDB unreachable or object not found")
     }
 
     private fun relayed(target: String): List<Pair<String, String>> {
@@ -56,10 +66,10 @@ object AsteroidOrbitFetcher {
         )
     }
 
-    private fun horizonsUrl(span: Span): String {
+    private fun horizonsUrl(target: FetchTarget, span: Span): String {
         val params = linkedMapOf(
             "format" to "json",
-            "COMMAND" to "'20137;'",
+            "COMMAND" to "'${target.horizonsCommand}'",
             "OBJ_DATA" to "'NO'",
             "MAKE_EPHEM" to "'YES'",
             "EPHEM_TYPE" to "'ELEMENTS'",
@@ -77,12 +87,12 @@ object AsteroidOrbitFetcher {
         }
     }
 
-    private fun fetchHorizonsTable(): AsteroidFetchResult.Success? {
+    private fun fetchHorizonsTable(target: FetchTarget): AsteroidFetchResult.Success? {
         // Per source: try spans widest-first. A network failure moves on to the next source; a
         // valid answer with no rows (span outside Horizons' data) moves on to the next span.
         for ((sourceLabel, _) in relayed(HORIZONS)) {
             for (span in spans) {
-                val url = relayed(horizonsUrl(span)).first { it.first == sourceLabel }.second
+                val url = relayed(horizonsUrl(target, span)).first { it.first == sourceLabel }.second
                 val body = try {
                     get(url, readTimeoutMs = 25_000)
                 } catch (_: Exception) {
@@ -93,26 +103,43 @@ object AsteroidOrbitFetcher {
                 } catch (_: Exception) {
                     body
                 }
+                // Unknown or ambiguous name: no other span or relay will answer differently.
+                if (NOT_A_SINGLE_MATCH.any { text.contains(it, ignoreCase = true) }) return null
                 val rows = EphemerisFormats.parseHorizonsElements(text)
                 if (rows.size >= 10) {
-                    return AsteroidFetchResult.Success(rows, "JPL Horizons ${span.label} · ${rows.size} epochs · $sourceLabel")
+                    return AsteroidFetchResult.Success(
+                        rows,
+                        "JPL Horizons ${span.label} · ${rows.size} epochs · $sourceLabel",
+                        horizonsTargetName(text),
+                    )
                 }
             }
         }
         return null
     }
 
-    private fun fetchSbdbSingle(): AsteroidFetchResult.Success? {
-        for ((label, url) in relayed(SBDB)) {
+    private fun fetchSbdbSingle(target: FetchTarget): AsteroidFetchResult.Success? {
+        val url = "$SBDB?sstr=" + URLEncoder.encode(target.sbdbQuery, "UTF-8").replace("+", "%20") + "&full-prec=1"
+        for ((label, relayedUrl) in relayed(url)) {
             try {
-                val orbit = parseSbdb(get(url, readTimeoutMs = 10_000)) ?: continue
-                return AsteroidFetchResult.Success(listOf(orbit), "JPL SBDB single epoch · $label")
+                val json = get(relayedUrl, readTimeoutMs = 10_000)
+                val orbit = parseSbdb(json) ?: continue
+                val name = try {
+                    JSONObject(json).optJSONObject("object")?.optString("fullname")?.trim()?.takeIf { it.isNotEmpty() }
+                } catch (_: Exception) {
+                    null
+                }
+                return AsteroidFetchResult.Success(listOf(orbit), "JPL SBDB single epoch · $label", name)
             } catch (_: Exception) {
                 // try the next source
             }
         }
         return null
     }
+
+    /** "Target body name: 1 Ceres (A801 AA)   {source: JPL#48}" -> "1 Ceres (A801 AA)". */
+    private fun horizonsTargetName(text: String): String? =
+        Regex("Target body name:\\s*(.+?)\\s*(\\{|\\n|$)").find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun get(urlStr: String, readTimeoutMs: Int): String {
         val connection = URI(urlStr).toURL().openConnection() as HttpURLConnection

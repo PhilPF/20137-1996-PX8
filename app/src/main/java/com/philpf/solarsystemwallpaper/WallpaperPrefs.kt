@@ -216,6 +216,50 @@ class WallpaperPrefs(context: Context) {
     val asteroidStatus: String get() = prefs.getString(KEY_ASTEROID_STATUS, STATUS_FALLBACK) ?: STATUS_FALLBACK
     val asteroidStatusDetail: String get() = prefs.getString(KEY_ASTEROID_STATUS_DETAIL, "") ?: ""
 
+    // ---- Extra objects (experimental) ---------------------------------------------------------
+
+    /** Bodies the user added (dwarf planets, asteroids, comets); empty by default. */
+    val extraObjects: List<ExtraObject>
+        get() {
+            val raw = prefs.getString(KEY_EXTRA_OBJECTS, "") ?: ""
+            val cached = extrasCache
+            if (cached != null && cached.first == raw) return cached.second
+            return ExtraObjects.decode(raw).also { extrasCache = raw to it }
+        }
+
+    private fun setExtraObjects(list: List<ExtraObject>) {
+        prefs.edit().putString(KEY_EXTRA_OBJECTS, ExtraObjects.encode(list)).apply()
+        notifyWidgets()
+    }
+
+    fun addExtraObject(o: ExtraObject) {
+        val current = extraObjects
+        if (current.any { it.id == o.id } || current.size >= ExtraObjects.MAX_OBJECTS) return
+        setExtraObjects(current + o)
+    }
+
+    fun removeExtraObject(id: String) {
+        setExtraObjects(extraObjects.filterNot { it.id == id })
+        ExtraEphemerides.store(id).delete(appContext)
+    }
+
+    /** Saves a fetched table, and JPL's name for the object if it had none better. */
+    fun setExtraObjectData(id: String, rows: List<AsteroidOrbit>, label: String, jplName: String?) {
+        ExtraEphemerides.store(id).save(appContext, label, rows)
+        val list = extraObjects
+        if (jplName != null && id.startsWith("custom_")) {
+            setExtraObjects(list.map { if (it.id == id) it.copy(name = jplName) else it })
+        } else {
+            notifyWidgets()
+        }
+    }
+
+    /** Extra objects as the renderer wants them; those not fetched yet are left out. */
+    fun renderExtras(): List<SolarSystemRenderer.Extra> = extraObjects.map { o ->
+        val store = ExtraEphemerides.store(o.id)
+        SolarSystemRenderer.Extra(o) { jd -> store.orbitAtOrNull(appContext, jd) }
+    }
+
     fun registerListener(listener: SharedPreferences.OnSharedPreferenceChangeListener) {
         prefs.registerOnSharedPreferenceChangeListener(listener)
     }
@@ -225,10 +269,14 @@ class WallpaperPrefs(context: Context) {
     }
 
     companion object {
+        /** Decoded [extraObjects], shared by the app, wallpaper and widget (all one process). */
+        @Volatile private var extrasCache: Pair<String, List<ExtraObject>>? = null
+
         const val KEY_MONOCHROME = "pref_monochrome"
         const val KEY_SHOW_PLANET_LABELS = "pref_show_planet_labels"
         const val KEY_SHOW_ASTEROID_LABEL = "pref_show_asteroid_label"
         const val KEY_RELATIVE_SIZES = "pref_relative_sizes"
+        const val KEY_EXTRA_OBJECTS = "pref_extra_objects"
         const val KEY_BODY_SCALE = "pref_body_scale"
         const val KEY_DISTANCE_SCALE = "pref_distance_scale"
         const val KEY_SAVED_VIEW_AZIMUTH = "pref_saved_view_azimuth"
